@@ -1,0 +1,30 @@
+# Build results
+bin/
+obj/
+
+# IDE settings
+.vscode/
+.idea/
+*.sln.iml
+*.user
+
+# Environment files
+*.env.local
+*.env.*.local
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Output files
+assets/*
+!assets/.gitkeep
+
+.env
+*.env
+*.env.local
