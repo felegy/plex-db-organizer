@@ -23,6 +23,7 @@ What you can do with it:
 	- Batch size: how many movies are processed per batch.
 	- Output path: where the CSV output file is written.
 	- Enable TMDB enrichment: adds TMDB data (rating, overview, poster).
+	- Enable IMDB enrichment: adds IMDB data (rating, votes, IMDB link).
 
 ### Movies
 

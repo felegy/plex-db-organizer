@@ -97,6 +97,10 @@
               <input type="checkbox" x-model="syncForm.tmdbEnrich">
               <span>Enable TMDB enrichment</span>
             </label>
+            <label class="inline-toggle">
+              <input type="checkbox" x-model="syncForm.imdbEnrich">
+              <span>Enable IMDB enrichment</span>
+            </label>
             <button type="submit" :disabled="sync.running" :aria-busy="sync.running">Run sync</button>
           </form>
           <div x-cloak x-show="sync.lastResult" class="result-block">
@@ -144,6 +148,7 @@
                   <th>Year</th>
                   <th>Genres</th>
                   <th>TMDB</th>
+                  <th>IMDB</th>
                   <th>Link</th>
                   <th></th>
                 </tr>
@@ -161,8 +166,11 @@
                     <td x-text="movie.year || '-' "></td>
                     <td x-text="movie.genres || '-' "></td>
                     <td x-text="formatRating(movie.tmdbRating)"></td>
+                    <td x-text="formatRating(movie.imdbRating)"></td>
                     <td>
                       <a x-show="movie.tmdbId" :href="`https://www.themoviedb.org/movie/${movie.tmdbId}`" target="_blank" rel="noreferrer">TMDB</a>
+                      <span x-show="movie.tmdbId && movie.imdbId"> | </span>
+                      <a x-show="movie.imdbId" :href="movie.imdbUrl || `https://www.imdb.com/title/${movie.imdbId}/`" target="_blank" rel="noreferrer">IMDB</a>
                     </td>
                     <td>
                       <button class="secondary" @click="markMustDelete(movie.id)" :disabled="movie.mustDelete" x-text="movie.mustDelete ? 'Marked' : 'Mark must-delete'"></button>
@@ -217,6 +225,7 @@
                   <th>Year</th>
                   <th>Genres</th>
                   <th>TMDB</th>
+                  <th>IMDB</th>
                   <th>Score</th>
                   <th>Link</th>
                   <th></th>
@@ -236,9 +245,12 @@
                     <td x-text="result.movie.year || '-'"></td>
                     <td x-text="result.movie.genres || '-'"></td>
                     <td x-text="formatRating(result.movie.tmdbRating)"></td>
+                    <td x-text="formatRating(result.movie.imdbRating)"></td>
                     <td><span class="score-pill" x-text="result.score"></span></td>
                     <td>
                       <a x-show="result.movie.tmdbId" :href="`https://www.themoviedb.org/movie/${result.movie.tmdbId}`" target="_blank" rel="noreferrer">TMDB</a>
+                      <span x-show="result.movie.tmdbId && result.movie.imdbId"> | </span>
+                      <a x-show="result.movie.imdbId" :href="result.movie.imdbUrl || `https://www.imdb.com/title/${result.movie.imdbId}/`" target="_blank" rel="noreferrer">IMDB</a>
                     </td>
                     <td>
                       <button class="secondary" @click="markMustDelete(result.movie.id)" :disabled="result.movie.mustDelete" x-text="result.movie.mustDelete ? 'Marked' : 'Mark must-delete'"></button>

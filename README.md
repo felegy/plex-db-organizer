@@ -1,6 +1,6 @@
 # Plex TMDB Sync Solution
 
-A multi-project .NET solution for syncing Plex movie metadata, enriching it with TMDB data, storing it in an app database, exporting CSV, and searching results.
+A multi-project .NET solution for syncing Plex movie metadata, enriching it with TMDB/IMDB data, storing it in an app database, exporting CSV, and searching results.
 
 ## Solution Structure
 
@@ -30,7 +30,7 @@ plex-db/
   - Business logic and data access.
   - Plex DB reader (Dapper + SQLite).
   - App DB migrations/versioning (`schema_migrations`).
-  - TMDB enrichment service.
+  - TMDB + IMDB enrichment services.
   - CSV export service.
   - Fuzzy search service.
   - Sync orchestration service.
@@ -49,6 +49,7 @@ plex-db/
 - Node.js 20+ (for the web client)
 - Plex SQLite DB file
 - TMDB credentials in `.env` (required only when TMDB enrichment is enabled)
+- IMDB credentials in `.env` (required only when IMDB enrichment is enabled)
 
 ## Environment Variables
 
@@ -62,6 +63,11 @@ TMDB variables (required when running TMDB-enriched sync):
 - `TMDB_API_KEY`
 - `TMDB_API_BASE_URL`
 - `TMDB_ACCESS_TOKEN`
+
+IMDB variables (required when running IMDB-enriched sync):
+
+- `IMDB_API_KEY`
+- `IMDB_API_BASE_URL`
 
 Optional web-client CORS variables:
 
@@ -172,6 +178,7 @@ Options:
 ```text
 --output <path>     Output CSV path (default: assets/csv/plex_movies.csv)
 --tmdb <true|false> Enable TMDB enrichment (default: true)
+--imdb <true|false> Enable IMDB enrichment (default: false)
 --batch <number>    Batch size for TMDB API calls (default: 10)
 --search <term>     Search movies in CSV (Prefer: client search --term)
 --threshold <num>   Minimum fuzzy score for search (default: 60)
@@ -221,6 +228,7 @@ Client sync options:
 
 ```text
 --tmdb-enrich       Enable TMDB enrichment (default: true)
+--imdb-enrich       Enable IMDB enrichment (default: false)
 --batch-size <num>  Batch size for sync request (default: 10)
 --output-path <p>   Optional CSV output path for sync request
 ```
@@ -266,6 +274,9 @@ dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- --tmdb fals
 # Full sync with TMDB
 dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- --tmdb true --batch 10
 
+# Full sync with TMDB and IMDB
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- --tmdb true --imdb true --batch 10
+
 # Full sync explicitly (docker)
 docker compose run --rm --build cli --sync
 
@@ -289,6 +300,9 @@ dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --ap
 
 # Client sync request
 dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 sync --tmdb-enrich true --batch-size 50
+
+# Client sync request with IMDB enabled
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 sync --tmdb-enrich true --imdb-enrich true --batch-size 50
 
 # Client movies list request
 dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 movies list
@@ -364,7 +378,7 @@ Example sync request:
 ```bash
 curl -X POST http://localhost:5242/sync \
   -H "Content-Type: application/json" \
-  -d '{"tmdbEnrich": true, "batchSize": 10, "outputPath": "assets/csv/plex_movies.csv"}'
+  -d '{"tmdbEnrich": true, "imdbEnrich": true, "batchSize": 10, "outputPath": "assets/csv/plex_movies.csv"}'
 ```
 
 ## App Database Migrations

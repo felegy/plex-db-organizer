@@ -108,6 +108,7 @@ app.MapPost("/sync", async (HttpContext httpContext, IServiceProvider servicePro
 
     var movies = await syncService.RunSyncAsync(
         request.TmdbEnrich ?? true,
+        request.ImdbEnrich ?? false,
         batchSize,
         outputPath);
 
@@ -120,7 +121,7 @@ app.MapPost("/sync", async (HttpContext httpContext, IServiceProvider servicePro
 })
     .WithName("RunSync")
     .WithSummary("Runs Plex to app-database sync")
-    .WithDescription("Reads Plex metadata from the Plex database, optionally enriches movies from TMDB API, stores them in the app database, and exports a CSV file. Returns sync statistics and output path.")
+    .WithDescription("Reads Plex metadata from the Plex database, optionally enriches movies from TMDB and IMDB APIs, stores them in the app database, and exports a CSV file. Returns sync statistics and output path.")
     .Produces(StatusCodes.Status200OK)
     .Produces<ApiProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")
     .Produces<ApiProblemDetails>(StatusCodes.Status500InternalServerError, "application/problem+json");
@@ -171,7 +172,8 @@ app.MapGet("/search", async (
     {
         r.Score,
         Movie = r.Movie,
-        TmdbUrl = r.Movie.TmdbId > 0 ? $"https://www.themoviedb.org/movie/{r.Movie.TmdbId}" : null
+        TmdbUrl = r.Movie.TmdbId > 0 ? $"https://www.themoviedb.org/movie/{r.Movie.TmdbId}" : null,
+        ImdbUrl = !string.IsNullOrWhiteSpace(r.Movie.ImdbId) ? $"https://www.imdb.com/title/{r.Movie.ImdbId}/" : null
     }));
 })
     .WithName("SearchMovies")
@@ -341,4 +343,4 @@ static ApiProblemDetails CreateProblem(
         Errors: errors);
 }
 
-public sealed record SyncRequest(bool? TmdbEnrich, int? BatchSize, string? OutputPath);
+public sealed record SyncRequest(bool? TmdbEnrich, bool? ImdbEnrich, int? BatchSize, string? OutputPath);

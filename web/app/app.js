@@ -36,6 +36,7 @@ export function app() {
 		},
 		syncForm: {
 			tmdbEnrich: true,
+			imdbEnrich: false,
 			batchSize: 10,
 			outputPath: DEFAULT_OUTPUT_PATH,
 		},
@@ -175,6 +176,7 @@ export function app() {
 			try {
 				const result = await executeSync(this.apiBaseUrl, {
 					tmdbEnrich: this.syncForm.tmdbEnrich,
+					imdbEnrich: this.syncForm.imdbEnrich,
 					batchSize: this.syncForm.batchSize,
 					outputPath: this.syncForm.outputPath,
 				});

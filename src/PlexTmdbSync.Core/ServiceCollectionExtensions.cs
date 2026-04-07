@@ -10,6 +10,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<PlexDatabaseService>();
         services.AddSingleton<AppDatabaseService>();
         services.AddSingleton<TmdbService>();
+        services.AddSingleton<ImdbService>();
         services.AddSingleton<CsvExportService>();
         services.AddSingleton<MovieSearchService>();
         services.AddSingleton<MovieSyncService>();
