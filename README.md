@@ -138,6 +138,11 @@ docker compose -f compose.yaml --profile tools run --rm cli --migrate-only
 
 ## CLI Usage
 
+System.CommandLine refactor note:
+
+- Feature branch: `feature/cli-system-commandline-parser`
+- The CLI parser migration introduces standard parser diagnostics and built-in help output.
+
 Run CLI:
 
 ```bash
@@ -156,6 +161,17 @@ Options:
 --migrate-only      Run app database migrations only, then exit
 --mark-must-delete  Mark one movie by id as MustDelete
 --list-must-delete  List movies marked as MustDelete
+--help              Show command help and available options
+```
+
+Help examples:
+
+```bash
+# CLI help (local)
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- --help
+
+# CLI help (docker)
+docker compose run --rm cli --help
 ```
 
 Examples:
