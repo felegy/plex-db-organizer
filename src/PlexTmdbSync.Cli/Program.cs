@@ -1009,10 +1009,11 @@ static ApiProblemDetails CreateProblem(
 
 static void LoadEnvFile(string envPath)
 {
-	if (!File.Exists(envPath))
+	var resolvedEnvPath = ResolveEnvPath(envPath);
+	if (resolvedEnvPath is null)
 		return;
 
-	var envLines = File.ReadAllLines(envPath);
+	var envLines = File.ReadAllLines(resolvedEnvPath);
 	foreach (var line in envLines)
 	{
 		if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#"))
@@ -1021,9 +1022,29 @@ static void LoadEnvFile(string envPath)
 		var parts = line.Split('=', 2);
 		if (parts.Length == 2)
 		{
-			Environment.SetEnvironmentVariable(parts[0].Trim(), parts[1].Trim().Trim('\''));
+			Environment.SetEnvironmentVariable(parts[0].Trim(), parts[1].Trim().Trim().Trim('\'', '"'));
 		}
 	}
+}
+
+static string? ResolveEnvPath(string envPath)
+{
+	var currentDirectory = Directory.GetCurrentDirectory();
+
+	while (!string.IsNullOrWhiteSpace(currentDirectory))
+	{
+		var candidate = Path.Combine(currentDirectory, envPath);
+		if (File.Exists(candidate))
+			return candidate;
+
+		var parent = Directory.GetParent(currentDirectory);
+		if (parent is null)
+			return null;
+
+		currentDirectory = parent.FullName;
+	}
+
+	return null;
 }
 
 public sealed record SyncRequest(bool? TmdbEnrich, int? BatchSize, string? OutputPath);

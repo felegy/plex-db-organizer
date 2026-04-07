@@ -133,9 +133,9 @@ public class AppDatabaseService
                 Duration = excluded.Duration,
                 Genres = excluded.Genres,
                 TmdbId = excluded.TmdbId,
-                TmdbPosterUrl = excluded.TmdbPosterUrl,
-                TmdbRating = excluded.TmdbRating,
-                TmdbOverview = excluded.TmdbOverview,
+                TmdbPosterUrl = COALESCE(excluded.TmdbPosterUrl, TmdbPosterUrl),
+                TmdbRating = COALESCE(excluded.TmdbRating, TmdbRating),
+                TmdbOverview = COALESCE(excluded.TmdbOverview, TmdbOverview),
                 UpdatedAtUtc = excluded.UpdatedAtUtc;";
 
         var rows = movies.Select(m => new
@@ -180,7 +180,8 @@ public class AppDatabaseService
                 TmdbId,
                 TmdbPosterUrl,
                 TmdbRating,
-                TmdbOverview
+                TmdbOverview,
+                MustDelete
             FROM movies
             ORDER BY Title;";
 

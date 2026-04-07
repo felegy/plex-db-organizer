@@ -1,0 +1,279 @@
+@import url("npm:@picocss/pico/css/pico.min.css");
+
+[x-cloak] {
+	display: none !important;
+}
+
+body {
+	padding-block: 2rem 4rem;
+}
+
+.app-shell {
+	display: grid;
+	gap: 1.5rem;
+}
+
+.hero {
+	display: grid;
+	gap: 1.25rem;
+	align-items: end;
+}
+
+.eyebrow {
+	margin-bottom: 0.25rem;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	font-size: 0.8rem;
+	opacity: 0.7;
+}
+
+.muted {
+	color: var(--pico-muted-color);
+}
+
+.health-status-ok {
+	color: #1f7a3d;
+	font-weight: 700;
+}
+
+.health-status-error {
+	color: #d93526;
+	font-weight: 700;
+}
+
+.api-config,
+.stack-form,
+.stack-section,
+.page-grid {
+	display: grid;
+	gap: 1rem;
+}
+
+.api-config-collapsible {
+	border: 1px solid var(--pico-muted-border-color);
+	border-radius: var(--pico-border-radius);
+	padding: 0.6rem 0.8rem;
+	background: var(--pico-card-background-color);
+}
+
+.api-config-collapsible > summary {
+	cursor: pointer;
+	font-weight: 600;
+	list-style: none;
+}
+
+.api-config-collapsible > summary::-webkit-details-marker {
+	display: none;
+}
+
+.api-config-collapsible .api-config {
+	margin-top: 0.75rem;
+}
+
+.api-config-row,
+.split-header,
+.toolbar,
+.inline-toggle {
+	display: flex;
+	gap: 0.75rem;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+}
+
+.tabs-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+	gap: 0.75rem;
+}
+
+.tabs-grid a {
+	padding: 0.8rem 1rem;
+	border: 1px solid var(--pico-muted-border-color);
+	border-radius: var(--pico-border-radius);
+	text-align: center;
+	text-decoration: none;
+	color: inherit;
+	background: var(--pico-card-background-color);
+}
+
+.tabs-grid a[aria-current="page"] {
+	border-color: var(--pico-primary-border);
+	background: var(--pico-primary-background);
+	color: var(--pico-primary-inverse);
+}
+
+.feedback-panel {
+	padding: 0.9rem 1rem;
+	border-radius: var(--pico-border-radius);
+	border: 1px solid var(--pico-muted-border-color);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+}
+
+.panel-content {
+	flex: 1;
+}
+
+.panel-dismiss {
+	flex-shrink: 0;
+	padding: 0.2rem 0.5rem;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	font-size: 1rem;
+	line-height: 1;
+	color: inherit;
+	opacity: 0.6;
+}
+
+.panel-dismiss:hover {
+	opacity: 1;
+}
+
+.error-panel {
+	border-color: #d93526;
+	background: rgba(217, 53, 38, 0.08);
+}
+
+.success-panel {
+	border-color: #1f7a3d;
+	background: rgba(31, 122, 61, 0.08);
+}
+
+.page-grid {
+	grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+	align-items: start;
+}
+
+.toolbar {
+	align-items: end;
+}
+
+.toolbar > label {
+	flex: 1 1 240px;
+	margin: 0;
+}
+
+.table-wrap {
+	overflow-x: auto;
+}
+
+.result-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: grid;
+	gap: 1rem;
+}
+
+.compact {
+	align-items: start;
+}
+
+.score-pill {
+	display: inline-flex;
+	align-items: center;
+	padding: 0.25rem 0.65rem;
+	border-radius: 999px;
+	background: var(--pico-secondary-background);
+	color: var(--pico-secondary-inverse);
+	font-size: 0.85rem;
+	white-space: nowrap;
+}
+
+.score-pill.danger {
+	background: #a62828;
+	color: #fff;
+}
+
+.app-footer {
+	display: flex;
+	justify-content: flex-end;
+}
+
+.help-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.45);
+	display: grid;
+	place-items: center;
+	padding: 1rem;
+	z-index: 20;
+}
+
+.help-modal {
+	width: min(860px, 100%);
+	max-height: 85vh;
+	overflow: auto;
+	background: var(--pico-card-background-color);
+	border: 1px solid var(--pico-muted-border-color);
+	border-radius: var(--pico-border-radius);
+	padding: 1rem;
+}
+
+.help-content {
+	display: grid;
+	gap: 0.75rem;
+}
+
+.help-content h1,
+.help-content h2,
+.help-content h3 {
+	margin-bottom: 0.25rem;
+}
+
+.help-content pre {
+	overflow: auto;
+	padding: 0.75rem;
+	border-radius: var(--pico-border-radius);
+	background: rgba(0, 0, 0, 0.08);
+}
+
+.result-block p,
+td small {
+	display: block;
+	margin: 0.15rem 0 0;
+}
+
+td small.overview-line {
+	max-width: 40ch;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	opacity: 0.7;
+}
+
+.poster-cell {
+	width: 48px;
+	padding: 0.25rem;
+}
+
+.poster-thumb {
+	width: 44px;
+	height: 66px;
+	object-fit: cover;
+	border-radius: calc(var(--pico-border-radius) / 2);
+	display: block;
+}
+
+.row-must-delete td {
+	opacity: 0.55;
+}
+
+@media (min-width: 900px) {
+	.hero {
+		grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.9fr);
+	}
+
+	.stack-form {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.stack-form > button,
+	.stack-form > .inline-toggle {
+		grid-column: 1 / -1;
+	}
+	}

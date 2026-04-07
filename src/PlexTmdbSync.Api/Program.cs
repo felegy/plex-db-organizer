@@ -8,6 +8,7 @@ using Microsoft.OpenApi.Models;
 LoadEnvFile(".env");
 
 var builder = WebApplication.CreateBuilder(args);
+var allowedWebClientOrigins = GetConfiguredWebClientOrigins();
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
@@ -25,6 +26,16 @@ builder.Services.AddSwaggerGen(options =>
         Title = "Plex TMDB Sync API",
         Version = "v1",
         Description = "REST API for migrating, syncing, exporting, and searching Plex movie metadata enriched with TMDB data."
+    });
+});
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("WebClient", policy =>
+    {
+        policy
+            .SetIsOriginAllowed(origin => IsAllowedWebClientOrigin(origin, allowedWebClientOrigins))
+            .AllowAnyHeader()
+            .AllowAnyMethod();
     });
 });
 builder.Services.AddPlexTmdbCore();
@@ -52,6 +63,8 @@ app.Use(async (context, next) =>
         await Results.Json(problem, statusCode: problem.Status, contentType: "application/problem+json").ExecuteAsync(context);
     }
 });
+
+app.UseCors("WebClient");
 
 app.UseSwagger();
 app.UseSwaggerUI(options =>
@@ -208,10 +221,11 @@ app.Run();
 
 static void LoadEnvFile(string envPath)
 {
-    if (!File.Exists(envPath))
+    var resolvedEnvPath = ResolveEnvPath(envPath);
+    if (resolvedEnvPath is null)
         return;
 
-    var envLines = File.ReadAllLines(envPath);
+    var envLines = File.ReadAllLines(resolvedEnvPath);
     foreach (var line in envLines)
     {
         if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#"))
@@ -220,9 +234,67 @@ static void LoadEnvFile(string envPath)
         var parts = line.Split('=', 2);
         if (parts.Length == 2)
         {
-            Environment.SetEnvironmentVariable(parts[0].Trim(), parts[1].Trim().Trim('\''));
+            Environment.SetEnvironmentVariable(parts[0].Trim(), parts[1].Trim().Trim().Trim('\'', '"'));
         }
     }
+}
+
+static string? ResolveEnvPath(string envPath)
+{
+    var currentDirectory = Directory.GetCurrentDirectory();
+
+    while (!string.IsNullOrWhiteSpace(currentDirectory))
+    {
+        var candidate = Path.Combine(currentDirectory, envPath);
+        if (File.Exists(candidate))
+            return candidate;
+
+        var parent = Directory.GetParent(currentDirectory);
+        if (parent is null)
+            return null;
+
+        currentDirectory = parent.FullName;
+    }
+
+    return null;
+}
+
+static HashSet<string> GetConfiguredWebClientOrigins()
+{
+    var origins = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    AddOrigins(origins, Environment.GetEnvironmentVariable("WEB_CLIENT_ORIGIN"));
+    AddOrigins(origins, Environment.GetEnvironmentVariable("WEB_CLIENT_ORIGINS"));
+    return origins;
+}
+
+static void AddOrigins(HashSet<string> origins, string? rawOrigins)
+{
+    if (string.IsNullOrWhiteSpace(rawOrigins))
+        return;
+
+    foreach (var origin in rawOrigins.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+    {
+        if (Uri.TryCreate(origin, UriKind.Absolute, out var uri) && !string.IsNullOrWhiteSpace(uri.Scheme) && !string.IsNullOrWhiteSpace(uri.Host))
+            origins.Add(uri.GetLeftPart(UriPartial.Authority));
+    }
+}
+
+static bool IsAllowedWebClientOrigin(string origin, HashSet<string> configuredOrigins)
+{
+    if (configuredOrigins.Contains(origin))
+        return true;
+
+    if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+        return false;
+
+    if (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+        && !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        return false;
+
+    return string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(uri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(uri.Host, "[::1]", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(uri.Host, "::1", StringComparison.OrdinalIgnoreCase);
 }
 
 static IResult ValidationProblem(HttpContext httpContext, string title, params (string Key, string Message)[] errors)

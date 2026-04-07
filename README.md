@@ -46,18 +46,27 @@ plex-db/
 ## Requirements
 
 - .NET 10 SDK
+- Node.js 20+ (for the web client)
 - Plex SQLite DB file
-- TMDB credentials in `.env`
+- TMDB credentials in `.env` (required only when TMDB enrichment is enabled)
 
 ## Environment Variables
 
-Required in `.env`:
+Core variables in `.env`:
+
+- `PLEX_DATABASE_PATH`
+- `DATABASE_URL` (app DB connection)
+
+TMDB variables (required when running TMDB-enriched sync):
 
 - `TMDB_API_KEY`
 - `TMDB_API_BASE_URL`
 - `TMDB_ACCESS_TOKEN`
-- `PLEX_DATABASE_PATH`
-- `DATABASE_URL` (app DB connection)
+
+Optional web-client CORS variables:
+
+- `WEB_CLIENT_ORIGIN` (single origin)
+- `WEB_CLIENT_ORIGINS` (comma-separated origins)
 
 Examples for `DATABASE_URL`:
 
@@ -86,6 +95,18 @@ Local URLs:
 - Health check: `http://localhost:5242/health`
 - Swagger UI: `http://localhost:5242/swagger`
 - Swagger JSON: `http://localhost:5242/swagger/v1/swagger.json`
+
+Start the web client locally (Parcel + Alpine.js):
+
+```bash
+npm install
+npm start
+```
+
+Web client URL:
+
+- `http://localhost:1234`
+- Default API base URL in UI: `http://localhost:5242`
 
 ## Docker Compose Test Environment
 

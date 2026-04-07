@@ -22,10 +22,11 @@ public class TmdbService
     {
         try
         {
+            _ = _config.RequireTmdbApiKey();
             var searchUrl = $"{_config.TmdbApiBaseUrl}/search/movie?query={Uri.EscapeDataString(title)}&year={year}";
 
             var request = new HttpRequestMessage(HttpMethod.Get, searchUrl);
-            request.Headers.Add("Authorization", $"Bearer {_config.TmdbAccessToken}");
+            request.Headers.Add("Authorization", $"Bearer {_config.RequireTmdbAccessToken()}");
 
             var response = await _httpClient.SendAsync(request);
             response.EnsureSuccessStatusCode();
@@ -54,10 +55,11 @@ public class TmdbService
     {
         try
         {
+            _ = _config.RequireTmdbApiKey();
             var detailUrl = $"{_config.TmdbApiBaseUrl}/movie/{tmdbId}";
 
             var request = new HttpRequestMessage(HttpMethod.Get, detailUrl);
-            request.Headers.Add("Authorization", $"Bearer {_config.TmdbAccessToken}");
+            request.Headers.Add("Authorization", $"Bearer {_config.RequireTmdbAccessToken()}");
 
             var response = await _httpClient.SendAsync(request);
             response.EnsureSuccessStatusCode();

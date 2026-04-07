@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plex TMDB Sync</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main class="container app-shell" x-data="app()" x-init="init()">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Plex TMDB Sync</p>
+          <h1>Web Client MVP</h1>
+          <p class="muted">Operational UI for health checks, sync, movie review, search and must-delete flows.</p>
+        </div>
+        <details
+          class="api-config-collapsible"
+          x-show="route === 'dashboard'"
+          :open="apiSettingsOpen"
+          @toggle="setApiSettingsOpen($event)"
+        >
+          <summary>API base URL settings</summary>
+          <form class="api-config" @submit.prevent="saveApiBaseUrl()">
+            <label for="api-base-url">API base URL</label>
+            <div class="api-config-row">
+              <input id="api-base-url" name="api-base-url" type="url" x-model="apiBaseUrl" placeholder="http://localhost:5242">
+              <button type="submit">Save</button>
+            </div>
+          </form>
+        </details>
+      </header>
+
+      <nav class="tabs-grid">
+        <a href="#/dashboard" :aria-current="route === 'dashboard' ? 'page' : null">Dashboard</a>
+        <a href="#/movies" :aria-current="route === 'movies' ? 'page' : null">Movies</a>
+        <a href="#/search" :aria-current="route === 'search' ? 'page' : null">Search</a>
+        <a href="#/must-delete" :aria-current="route === 'must-delete' ? 'page' : null">Must Delete</a>
+      </nav>
+
+      <section x-cloak x-show="errorMessage" class="feedback-panel error-panel">
+        <div class="panel-content">
+          <strong>Error:</strong>
+          <span x-text="errorMessage"></span>
+        </div>
+        <button class="panel-dismiss" aria-label="Dismiss" @click="clearError()">✕</button>
+      </section>
+
+      <section x-cloak x-show="successMessage" class="feedback-panel success-panel">
+        <div class="panel-content">
+          <strong>Status:</strong>
+          <span x-text="successMessage"></span>
+        </div>
+        <button class="panel-dismiss" aria-label="Dismiss" @click="successMessage = ''">✕</button>
+      </section>
+
+      <section x-show="route === 'dashboard'" class="page-grid">
+        <article>
+          <header>
+            <h2>API health</h2>
+            <p class="muted">Checks whether the backend is reachable.</p>
+          </header>
+          <p>
+            <strong>Status:</strong>
+            <span x-text="health.status" :class="{
+              'health-status-ok': health.status === 'ok',
+              'health-status-error': health.status === 'error'
+            }"></span>
+          </p>
+          <p class="muted" x-text="health.detail"></p>
+          <button @click="checkHealth()" :aria-busy="health.loading">Check health</button>
+        </article>
+
+        <article>
+          <header>
+            <h2>Migrate</h2>
+            <p class="muted">Runs database migrations through the API.</p>
+          </header>
+          <button @click="runMigrate()" :disabled="migrateRunning" :aria-busy="migrateRunning">Run migrate</button>
+        </article>
+
+        <article>
+          <header>
+            <h2>Sync</h2>
+            <p class="muted">Triggers the Plex to TMDB sync workflow.</p>
+          </header>
+          <form @submit.prevent="runSync()" class="stack-form">
+            <label>
+              <span>Batch size</span>
+              <input type="number" min="1" max="1000" x-model.number="syncForm.batchSize">
+            </label>
+            <label>
+              <span>Output path</span>
+              <input type="text" x-model="syncForm.outputPath">
+            </label>
+            <label class="inline-toggle">
+              <input type="checkbox" x-model="syncForm.tmdbEnrich">
+              <span>Enable TMDB enrichment</span>
+            </label>
+            <button type="submit" :disabled="sync.running" :aria-busy="sync.running">Run sync</button>
+          </form>
+          <div x-cloak x-show="sync.lastResult" class="result-block">
+            <p><strong>Message:</strong> <span x-text="sync.lastResult?.message || ''"></span></p>
+            <p><strong>Count:</strong> <span x-text="sync.lastResult?.count ?? 0"></span></p>
+            <p><strong>Output:</strong> <span x-text="sync.lastResult?.outputPath || ''"></span></p>
+          </div>
+        </article>
+      </section>
+
+      <section x-show="route === 'movies'" class="stack-section">
+        <article>
+          <header class="split-header">
+            <div>
+              <h2>Movies</h2>
+              <p class="muted">Loaded from the application database.</p>
+            </div>
+            <button @click="loadMovies(true)" :disabled="movies.loading" :aria-busy="movies.loading">Refresh</button>
+          </header>
+
+          <div class="toolbar">
+            <label>
+              <span>Filter by title</span>
+              <input type="search" x-model.trim="movies.filter" placeholder="Blade Runner">
+            </label>
+            <label>
+              <span>Sort</span>
+              <select x-model="movies.sortBy">
+                <option value="title">Title</option>
+                <option value="year">Year</option>
+                <option value="rating">TMDB rating</option>
+              </select>
+            </label>
+          </div>
+
+          <p class="muted" x-show="movies.loading">Loading movies...</p>
+          <p class="muted" x-show="!movies.loading" x-text="`${filteredMovies.length} movies visible`"></p>
+
+          <div class="table-wrap" x-show="filteredMovies.length > 0">
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Title</th>
+                  <th>Year</th>
+                  <th>Genres</th>
+                  <th>TMDB</th>
+                  <th>Link</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="movie in filteredMovies" :key="movie.id">
+                  <tr :class="movie.mustDelete ? 'row-must-delete' : ''">
+                    <td class="poster-cell">
+                      <img x-show="movie.tmdbPosterUrl" :src="movie.tmdbPosterUrl" :alt="movie.title" class="poster-thumb" loading="lazy">
+                    </td>
+                    <td>
+                      <strong x-text="movie.title"></strong>
+                      <small x-show="movie.originalTitle && movie.originalTitle !== movie.title" x-text="movie.originalTitle"></small>
+                    </td>
+                    <td x-text="movie.year || '-' "></td>
+                    <td x-text="movie.genres || '-' "></td>
+                    <td x-text="formatRating(movie.tmdbRating)"></td>
+                    <td>
+                      <a x-show="movie.tmdbId" :href="`https://www.themoviedb.org/movie/${movie.tmdbId}`" target="_blank" rel="noreferrer">TMDB</a>
+                    </td>
+                    <td>
+                      <button class="secondary" @click="markMustDelete(movie.id)" :disabled="movie.mustDelete" x-text="movie.mustDelete ? 'Marked' : 'Mark must-delete'"></button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <p x-show="!movies.loading && filteredMovies.length === 0" class="muted">No movies match the current filter.</p>
+        </article>
+      </section>
+
+      <section x-show="route === 'search'" class="stack-section">
+        <article>
+          <header class="split-header">
+            <div>
+              <h2>Search</h2>
+              <p class="muted">Fuzzy search over the exported CSV dataset.</p>
+            </div>
+          </header>
+
+          <form @submit.prevent="runSearch()" class="stack-form">
+            <label>
+              <span>Search term</span>
+              <input type="search" required x-model.trim="search.term" placeholder="batman">
+            </label>
+            <label>
+              <span>Threshold</span>
+              <input type="number" min="0" max="100" x-model.number="search.threshold">
+            </label>
+            <label>
+              <span>Output path</span>
+              <input type="text" x-model="search.outputPath">
+            </label>
+            <label class="inline-toggle">
+              <input type="checkbox" x-model="search.extended">
+              <span>Extended search</span>
+            </label>
+            <button type="submit" :disabled="search.loading" :aria-busy="search.loading">Run search</button>
+          </form>
+
+          <p class="muted" x-show="search.loading">Searching...</p>
+
+          <div class="table-wrap" x-show="search.results.length > 0">
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Title</th>
+                  <th>Year</th>
+                  <th>Genres</th>
+                  <th>TMDB</th>
+                  <th>Score</th>
+                  <th>Link</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="result in search.results" :key="`${result.movie.id}-${result.score}`">
+                  <tr :class="result.movie.mustDelete ? 'row-must-delete' : ''">
+                    <td class="poster-cell">
+                      <img x-show="result.movie.tmdbPosterUrl" :src="result.movie.tmdbPosterUrl" :alt="result.movie.title" class="poster-thumb" loading="lazy">
+                    </td>
+                    <td>
+                      <strong x-text="result.movie.title"></strong>
+                      <small x-show="result.movie.originalTitle && result.movie.originalTitle !== result.movie.title" x-text="result.movie.originalTitle"></small>
+                      <small x-show="result.movie.tmdbOverview" class="overview-line" x-text="result.movie.tmdbOverview"></small>
+                    </td>
+                    <td x-text="result.movie.year || '-'"></td>
+                    <td x-text="result.movie.genres || '-'"></td>
+                    <td x-text="formatRating(result.movie.tmdbRating)"></td>
+                    <td><span class="score-pill" x-text="result.score"></span></td>
+                    <td>
+                      <a x-show="result.movie.tmdbId" :href="`https://www.themoviedb.org/movie/${result.movie.tmdbId}`" target="_blank" rel="noreferrer">TMDB</a>
+                    </td>
+                    <td>
+                      <button class="secondary" @click="markMustDelete(result.movie.id)" :disabled="result.movie.mustDelete" x-text="result.movie.mustDelete ? 'Marked' : 'Mark must-delete'"></button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <p x-show="!search.loading && search.hasSearched && search.results.length === 0" class="muted">No search results found.</p>
+        </article>
+      </section>
+
+      <section x-show="route === 'must-delete'" class="stack-section">
+        <article>
+          <header class="split-header">
+            <div>
+              <h2>Must Delete</h2>
+              <p class="muted">Movies flagged for follow-up deletion work.</p>
+            </div>
+            <button @click="loadMustDelete(true)" :disabled="mustDelete.loading" :aria-busy="mustDelete.loading">Refresh</button>
+          </header>
+
+          <p class="muted" x-show="mustDelete.loading">Loading must-delete movies...</p>
+          <ul class="result-list" x-show="mustDelete.items.length > 0">
+            <template x-for="movie in mustDelete.items" :key="movie.id">
+              <li>
+                <article>
+                  <header class="split-header compact">
+                    <div>
+                      <strong x-text="movie.title"></strong>
+                      <p class="muted" x-text="movie.year || '-' "></p>
+                    </div>
+                    <span class="score-pill danger">Must Delete</span>
+                  </header>
+                  <p class="muted" x-text="movie.filePath || 'No file path available.'"></p>
+                </article>
+              </li>
+            </template>
+          </ul>
+          <p x-show="!mustDelete.loading && mustDelete.items.length === 0" class="muted">No movies are currently marked as must-delete.</p>
+        </article>
+      </section>
+
+      <footer class="app-footer">
+        <button class="secondary" @click="openHelp()" :aria-busy="help.loading">Help</button>
+      </footer>
+
+      <section x-cloak x-show="help.open" class="help-overlay" @click.self="closeHelp()">
+        <article class="help-modal">
+          <header class="split-header compact">
+            <h3>Web Client Help</h3>
+            <button class="secondary" @click="closeHelp()">Close</button>
+          </header>
+
+          <p class="muted" x-show="help.loading">Loading help...</p>
+          <p class="muted" x-show="!help.loading && help.error" x-text="help.error"></p>
+          <div class="help-content" x-show="!help.loading && !help.error" x-html="help.html"></div>
+        </article>
+      </section>
+    </main>
+    <script src="index.js" type="module"></script>
+  </body>
+</html>

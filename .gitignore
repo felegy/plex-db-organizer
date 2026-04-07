@@ -17,6 +17,11 @@ obj/
 *.temp
 *.log
 
+# Node / frontend
+node_modules/
+.parcel-cache/
+dist/
+
 # System files
 .DS_Store
 Thumbs.db
