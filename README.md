@@ -41,7 +41,7 @@ plex-db/
 
 - `PlexTmdbSync.Api`
   - REST API host around core services.
-  - Endpoints for health, migrate, sync, list movies, and search.
+  - Endpoints for health, migrate, sync, list movies, MustDelete management, and search.
 
 ## Requirements
 
@@ -72,6 +72,21 @@ dotnet restore
 dotnet build plex-db.sln
 ```
 
+## Run Locally
+
+Start the API locally:
+
+```bash
+dotnet run --project src/PlexTmdbSync.Api/PlexTmdbSync.Api.csproj
+```
+
+Local URLs:
+
+- API base URL: `http://localhost:5242`
+- Health check: `http://localhost:5242/health`
+- Swagger UI: `http://localhost:5242/swagger`
+- Swagger JSON: `http://localhost:5242/swagger/v1/swagger.json`
+
 ## Docker Compose Test Environment
 
 The repository uses two compose files:
@@ -86,6 +101,12 @@ Start API in Docker (local build via override):
 ```bash
 docker compose up --build -d api
 ```
+
+The override maps container port `8080` to host port `5242`, so the API is available on:
+
+- `http://localhost:5242`
+- `http://localhost:5242/health`
+- `http://localhost:5242/swagger`
 
 Check health:
 
@@ -154,6 +175,12 @@ dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- --search "g
 
 # Run DB migrations only
 dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- --migrate-only
+
+# Mark one movie as MustDelete
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- --mark-must-delete 123
+
+# List movies marked as MustDelete
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- --list-must-delete
 ```
 
 ## REST API Usage
@@ -177,6 +204,16 @@ Endpoints:
 - `GET /swagger`
 
 Swagger UI is available at `/swagger`, and the generated OpenAPI document is available at `/swagger/v1/swagger.json`.
+
+MustDelete examples:
+
+```bash
+# Mark one movie as MustDelete
+curl -X POST http://localhost:5242/movies/123/must-delete
+
+# List movies currently marked as MustDelete
+curl http://localhost:5242/movies/must-delete
+```
 
 Example sync request:
 

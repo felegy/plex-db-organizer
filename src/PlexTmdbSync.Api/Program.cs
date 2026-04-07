@@ -115,6 +115,42 @@ app.MapGet("/search", async (
     .WithDescription("Performs fuzzy movie search against the exported CSV using title-only or extended search mode.")
     .Produces(StatusCodes.Status200OK);
 
+app.MapPost("/movies/{id:int}/must-delete", async (AppDatabaseService appDbService, int id) =>
+{
+    if (id <= 0)
+        return Results.BadRequest("Movie id must be greater than 0.");
+
+    await appDbService.InitializeAsync();
+    var updated = await appDbService.SetMustDeleteAsync(id, true);
+
+    if (!updated)
+        return Results.NotFound();
+
+    return Results.Ok(new
+    {
+        message = "Movie marked as MustDelete",
+        id,
+        mustDelete = true
+    });
+})
+    .WithName("MarkMovieMustDelete")
+    .WithSummary("Marks a movie for deletion")
+    .WithDescription("Sets the MustDelete flag to true for the specified movie ID in the application database.")
+    .Produces(StatusCodes.Status200OK)
+    .Produces(StatusCodes.Status400BadRequest)
+    .Produces(StatusCodes.Status404NotFound);
+
+app.MapGet("/movies/must-delete", async (AppDatabaseService appDbService) =>
+{
+    await appDbService.InitializeAsync();
+    var movies = await appDbService.GetMustDeleteMoviesAsync();
+    return Results.Ok(movies);
+})
+    .WithName("GetMustDeleteMovies")
+    .WithSummary("Returns movies marked for deletion")
+    .WithDescription("Reads movies from the application database where MustDelete is true.")
+    .Produces(StatusCodes.Status200OK);
+
 app.Run();
 
 static void LoadEnvFile(string envPath)
