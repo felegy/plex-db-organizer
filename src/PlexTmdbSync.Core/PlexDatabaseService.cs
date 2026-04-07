@@ -8,13 +8,19 @@ namespace PlexTmdbSync.Core;
 public class PlexDatabaseService
 {
     private readonly string _connectionString;
+    private readonly string _databasePath;
     private readonly ILogger<PlexDatabaseService> _logger;
 
     public PlexDatabaseService(ConfigService config, ILogger<PlexDatabaseService> logger)
     {
         _logger = logger;
-        var dbPath = Path.Combine(Directory.GetCurrentDirectory(), config.PlexDatabasePath.Trim('\''));
-        _connectionString = $"Data Source={dbPath};Version=3;";
+        _databasePath = Path.GetFullPath(config.PlexDatabasePath.Trim('\''));
+
+        if (!File.Exists(_databasePath))
+            throw new FileNotFoundException($"Plex database file was not found at '{_databasePath}'.", _databasePath);
+
+        _connectionString = $"Data Source={_databasePath};Version=3;";
+        _logger.LogInformation("Using Plex database at {DatabasePath}", _databasePath);
     }
 
     public async Task<List<PlexMovie>> GetMoviesAsync()
@@ -35,10 +41,7 @@ public class PlexDatabaseService
                         WHEN mi.guid LIKE '%themoviedb%' THEN CAST(SUBSTR(mi.guid, INSTR(mi.guid, '-') + 1, INSTR(SUBSTR(mi.guid, INSTR(mi.guid, '-') + 1), '?') - 1) AS INTEGER)
                         ELSE 0
                     END as TmdbId,
-                    CASE 
-                        WHEN mi.[index] > 0 THEN mi.[index]
-                        ELSE CAST(SUBSTR(mi.title, -4) AS INTEGER)
-                    END as Year,
+                    COALESCE(mi.year, 0) as Year,
                     mi.summary as Summary,
                     mi.rating as Rating,
                     COALESCE(mpi.duration, 0) / 60 as Duration,

@@ -4,18 +4,28 @@ public class ConfigService
 {
     public string PlexDatabasePath { get; }
     public string AppDatabaseConnectionString { get; }
-    public string TmdbApiKey { get; }
+    public string? TmdbApiKey { get; }
     public string TmdbApiBaseUrl { get; }
-    public string TmdbAccessToken { get; }
+    public string? TmdbAccessToken { get; }
 
     public ConfigService()
     {
         PlexDatabasePath = Environment.GetEnvironmentVariable("PLEX_DATABASE_PATH") ?? "assets/db/com.plexapp.plugins.library.db";
         var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL") ?? "sqlite://assets/db/plex_movies_app.db";
         AppDatabaseConnectionString = BuildSqliteConnectionString(databaseUrl);
-        TmdbApiKey = Environment.GetEnvironmentVariable("TMDB_API_KEY") ?? throw new InvalidOperationException("TMDB_API_KEY not found in environment");
+        TmdbApiKey = Environment.GetEnvironmentVariable("TMDB_API_KEY");
         TmdbApiBaseUrl = Environment.GetEnvironmentVariable("TMDB_API_BASE_URL") ?? "https://api.themoviedb.org/3";
-        TmdbAccessToken = Environment.GetEnvironmentVariable("TMDB_ACCESS_TOKEN") ?? throw new InvalidOperationException("TMDB_ACCESS_TOKEN not found in environment");
+        TmdbAccessToken = Environment.GetEnvironmentVariable("TMDB_ACCESS_TOKEN");
+    }
+
+    public string RequireTmdbApiKey()
+    {
+        return TmdbApiKey ?? throw new InvalidOperationException("TMDB_API_KEY not found in environment");
+    }
+
+    public string RequireTmdbAccessToken()
+    {
+        return TmdbAccessToken ?? throw new InvalidOperationException("TMDB_ACCESS_TOKEN not found in environment");
     }
 
     private static string BuildSqliteConnectionString(string databaseUrl)

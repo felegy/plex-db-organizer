@@ -105,10 +105,15 @@ export function app() {
 
 		setError(message) {
 			this.errorMessage = message;
+			window.clearTimeout(this.errorTimer);
+			this.errorTimer = window.setTimeout(() => {
+				this.errorMessage = "";
+			}, 7000);
 		},
 
 		clearError() {
 			this.errorMessage = "";
+			window.clearTimeout(this.errorTimer);
 		},
 
 		setSuccess(message) {
@@ -227,14 +232,19 @@ export function app() {
 
 		async markMustDelete(id) {
 			this.clearError();
+			const movie = this.movies.items.find((m) => m.id === id)
+				?? this.search.results.find((r) => r.movie.id === id)?.movie;
 
 			try {
 				await markMovieMustDelete(this.apiBaseUrl, id);
-				this.movies.items = this.movies.items.map((movie) => (
-					movie.id === id ? { ...movie, mustDelete: true } : movie
+				this.movies.items = this.movies.items.map((m) => (
+					m.id === id ? { ...m, mustDelete: true } : m
+				));
+				this.search.results = this.search.results.map((r) => (
+					r.movie.id === id ? { ...r, movie: { ...r.movie, mustDelete: true } } : r
 				));
 				await this.loadMustDelete(true);
-				this.setSuccess(`Movie ${id} marked as must-delete.`);
+				this.setSuccess(`"${movie?.title ?? id}" marked as must-delete.`);
 			} catch (error) {
 				this.setError(error.message);
 			}
