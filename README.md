@@ -37,7 +37,7 @@ plex-db/
 
 - `PlexTmdbSync.Cli`
   - Console entrypoint.
-  - Supports sync, migration-only, and CSV search modes.
+  - Supports sync, migration-only, CSV search, and MustDelete management modes.
 
 - `PlexTmdbSync.Api`
   - REST API host around core services.
@@ -72,6 +72,49 @@ dotnet restore
 dotnet build plex-db.sln
 ```
 
+## Docker Compose Test Environment
+
+The repository uses two compose files:
+
+- `compose.yaml`: base services using published images (`ghcr.io/felegy/...`)
+- `compose.override.yaml`: local development overrides (build, ports, env file, volumes)
+
+With Docker Compose defaults, `compose.override.yaml` is loaded automatically.
+
+Start API in Docker (local build via override):
+
+```bash
+docker compose up --build -d api
+```
+
+Check health:
+
+```bash
+curl http://localhost:5242/health
+```
+
+Run one-off CLI tasks in Docker:
+
+```bash
+docker compose run --rm cli --migrate-only
+docker compose run --rm cli --search "batman"
+docker compose run --rm cli --mark-must-delete 123
+docker compose run --rm cli --list-must-delete
+```
+
+Stop containers:
+
+```bash
+docker compose down
+```
+
+To test only published images (without local build overrides):
+
+```bash
+docker compose -f compose.yaml up -d api
+docker compose -f compose.yaml --profile tools run --rm cli --migrate-only
+```
+
 ## CLI Usage
 
 Run CLI:
@@ -90,6 +133,8 @@ Options:
 --threshold <num>   Minimum fuzzy score for search (default: 60)
 --search-extended   Extend search to Summary, Genres, FilePath, and TmdbOverview
 --migrate-only      Run app database migrations only, then exit
+--mark-must-delete  Mark one movie by id as MustDelete
+--list-must-delete  List movies marked as MustDelete
 ```
 
 Examples:
@@ -125,6 +170,8 @@ Endpoints:
 - `POST /migrate`
 - `POST /sync`
 - `GET /movies`
+- `POST /movies/{id}/must-delete`
+- `GET /movies/must-delete`
 - `GET /search?term=...&outputPath=...&threshold=...&extended=...`
 - `GET /swagger/v1/swagger.json`
 - `GET /swagger`
@@ -134,7 +181,7 @@ Swagger UI is available at `/swagger`, and the generated OpenAPI document is ava
 Example sync request:
 
 ```bash
-curl -X POST http://localhost:5000/sync \
+curl -X POST http://localhost:5242/sync \
   -H "Content-Type: application/json" \
   -d '{"tmdbEnrich": true, "batchSize": 10, "outputPath": "assets/csv/plex_movies.csv"}'
 ```
@@ -151,6 +198,7 @@ Current migrations:
 
 1. Create `movies` table.
 2. Add indexes (`Title`, `OriginalTitle`, `TmdbId`).
+3. Add `MustDelete` column with default `false` (`0`).
 
 ## Logging
 

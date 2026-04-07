@@ -1,0 +1,14 @@
+.git
+.gitignore
+.vscode
+.idea
+
+**/bin/
+**/obj/
+
+assets/csv/*.csv
+assets/db/*.db
+
+.env
+*.md
+/tmp/

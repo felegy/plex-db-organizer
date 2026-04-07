@@ -1,0 +1,11 @@
+services:
+  api:
+    image: ghcr.io/felegy/plex-tmdb-api:latest
+    container_name: plex-tmdb-api
+
+  cli:
+    image: ghcr.io/felegy/plex-tmdb-cli:latest
+    container_name: plex-tmdb-cli
+    profiles:
+      - tools
+    command: ["--migrate-only"]
