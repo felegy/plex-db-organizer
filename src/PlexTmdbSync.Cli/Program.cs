@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using PlexTmdbSync.Core;
 using Serilog;
 using Serilog.Events;
-using Serilog.Formatting.Compact;
 
 LoadEnvFile(".env");
 
@@ -13,7 +12,7 @@ Log.Logger = new LoggerConfiguration()
 	.MinimumLevel.Information()
 	.MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
 	.Enrich.FromLogContext()
-	.WriteTo.Console(new RenderedCompactJsonFormatter())
+	.WriteTo.Console(outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
 	.CreateLogger();
 
 services.AddLogging(builder =>

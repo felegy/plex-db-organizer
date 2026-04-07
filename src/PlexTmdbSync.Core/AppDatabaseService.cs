@@ -42,6 +42,12 @@ public class AppDatabaseService
             CREATE INDEX IF NOT EXISTS idx_movies_title ON movies(Title);
             CREATE INDEX IF NOT EXISTS idx_movies_original_title ON movies(OriginalTitle);
             CREATE INDEX IF NOT EXISTS idx_movies_tmdb_id ON movies(TmdbId);"
+        ),
+        new(
+            3,
+            "Add MustDelete column to movies",
+            @"
+            ALTER TABLE movies ADD COLUMN MustDelete INTEGER NOT NULL DEFAULT 0;"
         )
     };
 
@@ -181,5 +187,27 @@ public class AppDatabaseService
         var movies = (await connection.QueryAsync<PlexMovie>(query)).ToList();
         _logger.LogInformation("Read {Count} movies from app database", movies.Count);
         return movies;
+    }
+
+    public async Task<bool> SetMustDeleteAsync(int id, bool mustDelete)
+    {
+        using var connection = new SQLiteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        const string updateSql = @"
+            UPDATE movies
+            SET MustDelete = @MustDelete,
+                UpdatedAtUtc = @UpdatedAtUtc
+            WHERE Id = @Id;";
+
+        var affectedRows = await connection.ExecuteAsync(updateSql, new
+        {
+            Id = id,
+            MustDelete = mustDelete ? 1 : 0,
+            UpdatedAtUtc = DateTime.UtcNow.ToString("O")
+        });
+
+        _logger.LogInformation("Updated MustDelete for movie {MovieId}: {MustDelete}", id, mustDelete);
+        return affectedRows > 0;
     }
 }
