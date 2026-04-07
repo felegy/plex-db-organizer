@@ -1,0 +1,17 @@
+{
+  "name": "plex-db-organizer-web-client",
+  "private": true,
+  "version": "0.0.0",
+  "source": "web/src/index.html",
+  "scripts": {
+    "start": "parcel",
+    "build": "parcel build"
+  },
+  "dependencies": {
+    "@picocss/pico": "^2.1.1",
+    "alpinejs": "^3.15.11"
+  },
+  "devDependencies": {
+    "parcel": "^2.14.0"
+  }
+}
