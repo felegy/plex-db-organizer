@@ -283,6 +283,23 @@
           <p x-show="!mustDelete.loading && mustDelete.items.length === 0" class="muted">No movies are currently marked as must-delete.</p>
         </article>
       </section>
+
+      <footer class="app-footer">
+        <button class="secondary" @click="openHelp()" :aria-busy="help.loading">Help</button>
+      </footer>
+
+      <section x-cloak x-show="help.open" class="help-overlay" @click.self="closeHelp()">
+        <article class="help-modal">
+          <header class="split-header compact">
+            <h3>Web Client Help</h3>
+            <button class="secondary" @click="closeHelp()">Close</button>
+          </header>
+
+          <p class="muted" x-show="help.loading">Loading help...</p>
+          <p class="muted" x-show="!help.loading && help.error" x-text="help.error"></p>
+          <div class="help-content" x-show="!help.loading && !help.error" x-html="help.html"></div>
+        </article>
+      </section>
     </main>
     <script src="index.js" type="module"></script>
   </body>

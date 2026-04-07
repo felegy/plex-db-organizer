@@ -7,6 +7,7 @@ import {
 	runSync as executeSync,
 	searchMovies as executeSearch,
 } from "./api.js";
+import { marked } from "marked";
 
 const DEFAULT_API_BASE_URL = "http://localhost:5242";
 const DEFAULT_OUTPUT_PATH = "assets/csv/plex_movies.csv";
@@ -56,6 +57,12 @@ export function app() {
 		mustDelete: {
 			loading: false,
 			items: [],
+		},
+		help: {
+			open: false,
+			loading: false,
+			error: "",
+			html: "",
 		},
 
 		get filteredMovies() {
@@ -258,6 +265,49 @@ export function app() {
 
 		formatRating(value) {
 			return typeof value === "number" && !Number.isNaN(value) ? value.toFixed(1) : "-";
+		},
+
+		async openHelp() {
+			this.help.open = true;
+
+			if (this.help.html || this.help.loading) {
+				return;
+			}
+
+			this.help.loading = true;
+			this.help.error = "";
+
+			const candidates = ["./README.md", "/README.md", "/web/README.md"];
+
+			try {
+				let markdown = "";
+				for (const path of candidates) {
+					const response = await fetch(path, { headers: { Accept: "text/markdown,text/plain,*/*" } });
+					if (!response.ok) {
+						continue;
+					}
+
+					markdown = await response.text();
+					const trimmed = markdown.trim();
+					if (trimmed.length > 0 && !trimmed.toLowerCase().startsWith("<!doctype html")) {
+						break;
+					}
+				}
+
+				if (!markdown.trim()) {
+					throw new Error("Help file was not found.");
+				}
+
+				this.help.html = marked.parse(markdown);
+			} catch (error) {
+				this.help.error = error instanceof Error ? error.message : "Failed to load help.";
+			} finally {
+				this.help.loading = false;
+			}
+		},
+
+		closeHelp() {
+			this.help.open = false;
 		},
 	};
 }
