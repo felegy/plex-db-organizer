@@ -210,4 +210,33 @@ public class AppDatabaseService
         _logger.LogInformation("Updated MustDelete for movie {MovieId}: {MustDelete}", id, mustDelete);
         return affectedRows > 0;
     }
+
+    public async Task<List<PlexMovie>> GetMustDeleteMoviesAsync()
+    {
+        using var connection = new SQLiteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        const string query = @"
+            SELECT
+                Id,
+                Title,
+                OriginalTitle,
+                FilePath,
+                Year,
+                Summary,
+                Rating,
+                Duration,
+                Genres,
+                TmdbId,
+                TmdbPosterUrl,
+                TmdbRating,
+                TmdbOverview
+            FROM movies
+            WHERE MustDelete = 1
+            ORDER BY Title;";
+
+        var movies = (await connection.QueryAsync<PlexMovie>(query)).ToList();
+        _logger.LogInformation("Read {Count} movies marked as MustDelete", movies.Count);
+        return movies;
+    }
 }

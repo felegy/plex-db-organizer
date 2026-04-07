@@ -140,6 +140,17 @@ app.MapPost("/movies/{id:int}/must-delete", async (AppDatabaseService appDbServi
     .Produces(StatusCodes.Status400BadRequest)
     .Produces(StatusCodes.Status404NotFound);
 
+app.MapGet("/movies/must-delete", async (AppDatabaseService appDbService) =>
+{
+    await appDbService.InitializeAsync();
+    var movies = await appDbService.GetMustDeleteMoviesAsync();
+    return Results.Ok(movies);
+})
+    .WithName("GetMustDeleteMovies")
+    .WithSummary("Returns movies marked for deletion")
+    .WithDescription("Reads movies from the application database where MustDelete is true.")
+    .Produces(StatusCodes.Status200OK);
+
 app.Run();
 
 static void LoadEnvFile(string envPath)
