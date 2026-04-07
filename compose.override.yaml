@@ -1,0 +1,29 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: src/PlexTmdbSync.Api/Dockerfile
+    ports:
+      - "5242:8080"
+    env_file:
+      - .env
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    volumes:
+      - ./assets:/app/assets
+
+  cli:
+    build:
+      context: .
+      dockerfile: src/PlexTmdbSync.Cli/Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./assets:/app/assets
