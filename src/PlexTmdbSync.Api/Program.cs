@@ -1,4 +1,5 @@
 using PlexTmdbSync.Core;
+using PlexTmdbSync.Types;
 using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Compact;
@@ -30,6 +31,28 @@ builder.Services.AddPlexTmdbCore();
 
 var app = builder.Build();
 
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Unhandled exception while processing {Method} {Path}", context.Request.Method, context.Request.Path);
+
+        if (context.Response.HasStarted)
+            throw;
+
+        var problem = CreateProblem(
+            context,
+            StatusCodes.Status500InternalServerError,
+            "Unexpected server error",
+            "The server failed to process the request.");
+        await Results.Json(problem, statusCode: problem.Status, contentType: "application/problem+json").ExecuteAsync(context);
+    }
+});
+
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
@@ -55,20 +78,20 @@ app.MapPost("/migrate", async (MovieSyncService syncService) =>
     .WithDescription("Initializes the application database and applies any pending schema migrations.")
     .Produces(StatusCodes.Status200OK);
 
-app.MapPost("/sync", async (MovieSyncService syncService, SyncRequest request) =>
+app.MapPost("/sync", async (HttpContext httpContext, IServiceProvider serviceProvider, SyncRequest request) =>
 {
-    // Validate batch size
     var batchSize = request.BatchSize ?? 10;
     if (batchSize <= 0 || batchSize > 1000)
-        return Results.BadRequest(new { error = "BatchSize must be between 1 and 1000" });
+        return ValidationProblem(httpContext, "Invalid sync request", ("batchSize", "BatchSize must be between 1 and 1000."));
 
     var outputPath = string.IsNullOrWhiteSpace(request.OutputPath)
         ? "assets/csv/plex_movies.csv"
         : request.OutputPath;
     
-    // Validate output path length
     if (outputPath.Length > 1024)
-        return Results.BadRequest(new { error = "OutputPath must not exceed 1024 characters" });
+        return ValidationProblem(httpContext, "Invalid sync request", ("outputPath", "OutputPath must not exceed 1024 characters."));
+
+    var syncService = serviceProvider.GetRequiredService<MovieSyncService>();
 
     var movies = await syncService.RunSyncAsync(
         request.TmdbEnrich ?? true,
@@ -86,8 +109,8 @@ app.MapPost("/sync", async (MovieSyncService syncService, SyncRequest request) =
     .WithSummary("Runs Plex to app-database sync")
     .WithDescription("Reads Plex metadata from the Plex database, optionally enriches movies from TMDB API, stores them in the app database, and exports a CSV file. Returns sync statistics and output path.")
     .Produces(StatusCodes.Status200OK)
-    .Produces(StatusCodes.Status400BadRequest)
-    .Produces(StatusCodes.Status500InternalServerError);
+    .Produces<ApiProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")
+    .Produces<ApiProblemDetails>(StatusCodes.Status500InternalServerError, "application/problem+json");
 
 app.MapGet("/movies", async (AppDatabaseService appDbService) =>
 {
@@ -101,25 +124,30 @@ app.MapGet("/movies", async (AppDatabaseService appDbService) =>
     .Produces(StatusCodes.Status200OK);
 
 app.MapGet("/search", async (
+    HttpContext httpContext,
     MovieSearchService searchService,
     string term,
     string? outputPath,
     int? threshold,
     bool? extended) =>
 {
-    // Validate required term
     if (string.IsNullOrWhiteSpace(term))
-        return Results.BadRequest(new { error = "Search term is required" });
+        return ValidationProblem(httpContext, "Invalid search request", ("term", "Search term is required."));
     
     if (term.Length > 256)
-        return Results.BadRequest(new { error = "Search term must not exceed 256 characters" });
+        return ValidationProblem(httpContext, "Invalid search request", ("term", "Search term must not exceed 256 characters."));
     
-    // Validate threshold range
     var thresholdValue = threshold ?? 60;
     if (thresholdValue < 0 || thresholdValue > 100)
-        return Results.BadRequest(new { error = "Threshold must be between 0 and 100" });
+        return ValidationProblem(httpContext, "Invalid search request", ("threshold", "Threshold must be between 0 and 100."));
 
     var csvPath = string.IsNullOrWhiteSpace(outputPath) ? "assets/csv/plex_movies.csv" : outputPath;
+    if (csvPath.Length > 1024)
+        return ValidationProblem(httpContext, "Invalid search request", ("outputPath", "OutputPath must not exceed 1024 characters."));
+
+    if (!File.Exists(csvPath))
+        return ProblemResult(httpContext, StatusCodes.Status404NotFound, "Search source not found", $"CSV file was not found at '{csvPath}'.");
+
     var results = await searchService.SearchInCsvAsync(
         csvPath,
         term,
@@ -137,18 +165,19 @@ app.MapGet("/search", async (
     .WithSummary("Searches generated CSV content")
     .WithDescription("Performs fuzzy movie search against the exported CSV file. Query parameters: term (required, string), outputPath (optional, string), threshold (optional, 0-100, default 60), extended (optional, boolean for extended search mode).")
     .Produces(StatusCodes.Status200OK)
-    .Produces(StatusCodes.Status400BadRequest);
+    .Produces<ApiProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")
+    .Produces<ApiProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json");
 
-app.MapPost("/movies/{id:int}/must-delete", async (AppDatabaseService appDbService, int id) =>
+app.MapPost("/movies/{id:int}/must-delete", async (HttpContext httpContext, AppDatabaseService appDbService, int id) =>
 {
     if (id <= 0)
-        return Results.BadRequest("Movie id must be greater than 0.");
+        return ValidationProblem(httpContext, "Invalid movie id", ("id", "Movie id must be greater than 0."));
 
     await appDbService.InitializeAsync();
     var updated = await appDbService.SetMustDeleteAsync(id, true);
 
     if (!updated)
-        return Results.NotFound();
+        return ProblemResult(httpContext, StatusCodes.Status404NotFound, "Movie not found", $"Movie with id {id} was not found.");
 
     return Results.Ok(new
     {
@@ -161,8 +190,8 @@ app.MapPost("/movies/{id:int}/must-delete", async (AppDatabaseService appDbServi
     .WithSummary("Marks a movie for deletion")
     .WithDescription("Sets the MustDelete flag to true for the specified movie ID in the application database.")
     .Produces(StatusCodes.Status200OK)
-    .Produces(StatusCodes.Status400BadRequest)
-    .Produces(StatusCodes.Status404NotFound);
+    .Produces<ApiProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")
+    .Produces<ApiProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json");
 
 app.MapGet("/movies/must-delete", async (AppDatabaseService appDbService) =>
 {
@@ -194,6 +223,50 @@ static void LoadEnvFile(string envPath)
             Environment.SetEnvironmentVariable(parts[0].Trim(), parts[1].Trim().Trim('\''));
         }
     }
+}
+
+static IResult ValidationProblem(HttpContext httpContext, string title, params (string Key, string Message)[] errors)
+{
+    var errorMap = errors
+        .GroupBy(error => error.Key, StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(
+            group => group.Key,
+            group => group.Select(error => error.Message).ToArray(),
+            StringComparer.OrdinalIgnoreCase);
+
+    return ProblemResult(
+        httpContext,
+        StatusCodes.Status400BadRequest,
+        title,
+        "One or more validation errors occurred.",
+        errorMap);
+}
+
+static IResult ProblemResult(
+    HttpContext httpContext,
+    int statusCode,
+    string title,
+    string detail,
+    Dictionary<string, string[]>? errors = null)
+{
+    var problem = CreateProblem(httpContext, statusCode, title, detail, errors);
+    return Results.Json(problem, statusCode: statusCode, contentType: "application/problem+json");
+}
+
+static ApiProblemDetails CreateProblem(
+    HttpContext httpContext,
+    int statusCode,
+    string title,
+    string detail,
+    Dictionary<string, string[]>? errors = null)
+{
+    return new ApiProblemDetails(
+        Title: title,
+        Status: statusCode,
+        Detail: detail,
+        Instance: httpContext.Request.Path,
+        TraceId: httpContext.TraceIdentifier,
+        Errors: errors);
 }
 
 public sealed record SyncRequest(bool? TmdbEnrich, int? BatchSize, string? OutputPath);
