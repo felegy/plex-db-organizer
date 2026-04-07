@@ -152,13 +152,13 @@ Options:
 --output <path>     Output CSV path (default: assets/csv/plex_movies.csv)
 --tmdb <true|false> Enable TMDB enrichment (default: true)
 --batch <number>    Batch size for TMDB API calls (default: 10)
---search <term>     Search movies in CSV
+--search <term>     Search movies in CSV (Prefer: client search --term)
 --threshold <num>   Minimum fuzzy score for search (default: 60)
 --search-extended   Extend search to Summary, Genres, FilePath, and TmdbOverview
---sync              Run full sync explicitly
---migrate-only      Run app database migrations only, then exit
---mark-must-delete  Mark one movie by id as MustDelete
---list-must-delete  List movies marked as MustDelete
+--sync              Run full sync explicitly (Prefer: client sync)
+--migrate-only      Run app database migrations only, then exit (Prefer: client migrate)
+--mark-must-delete  Mark one movie by id as MustDelete (Prefer: client movies must-delete mark --id)
+--list-must-delete  List movies marked as MustDelete (Prefer: client movies must-delete list)
 --version           Show version information
 --help              Show command help and available options
 ```
@@ -167,6 +167,19 @@ Commands:
 
 ```text
 api                 Run API server from the CLI
+client              REST API client commands
+```
+
+Client subcommands:
+
+```text
+health              Call GET /health
+migrate             Call POST /migrate
+sync                Call POST /sync
+movies list         Call GET /movies
+movies must-delete list
+movies must-delete mark --id <id>
+search              Call GET /search
 ```
 
 API command options:
@@ -174,6 +187,38 @@ API command options:
 ```text
 --urls <urls>       ASPNETCORE_URLS override for the API server
 ```
+
+Client command options:
+
+```text
+--api-url <url>     Base URL for REST API client requests
+--json              Output raw JSON instead of formatted table
+--verbose           Print HTTP request/response method, URL, and status to stderr
+```
+
+Client sync options:
+
+```text
+--tmdb-enrich       Enable TMDB enrichment (default: true)
+--batch-size <num>  Batch size for sync request (default: 10)
+--output-path <p>   Optional CSV output path for sync request
+```
+
+Client search options:
+
+```text
+--term <term>       Search term (required)
+--output-path <p>   CSV path to search in (default: assets/csv/plex_movies.csv)
+--threshold <num>   Minimum fuzzy score (0–100, default: 60)
+--extended          Search in Summary, Genres, FilePath, and TmdbOverview
+```
+
+Client URL precedence:
+
+1. `client --api-url ...`
+2. `API_BASE_URL` environment variable
+3. `ASPNETCORE_URLS` environment variable (first URL)
+4. Default: `http://localhost:5242`
 
 API URL precedence:
 
@@ -211,6 +256,39 @@ dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- api --urls 
 
 # Start API server from the CLI using ASPNETCORE_URLS
 ASPNETCORE_URLS=http://+:8080 dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- api
+
+# Client health check using default API URL resolution
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client health
+
+# Client health check with explicit API URL
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 health
+
+# Client migrate request
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 migrate
+
+# Client sync request
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 sync --tmdb-enrich true --batch-size 50
+
+# Client movies list request
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 movies list
+
+# Client must-delete list request
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 movies must-delete list
+
+# Client must-delete mark request
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 movies must-delete mark --id 123
+
+# Client search request (formatted table)
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 search --term "batman"
+
+# Client search with extended fields and lower threshold
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 search --term "gotham" --extended --threshold 40
+
+# Client search with raw JSON output
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 --json search --term "alien"
+
+# Client health check with verbose HTTP logging
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 --verbose health
 
 # Search in CSV
 dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- --search "batman"
