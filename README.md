@@ -138,6 +138,8 @@ docker compose -f compose.yaml --profile tools run --rm cli --migrate-only
 
 ## CLI Usage
 
+The CLI uses System.CommandLine with built-in validation and help output.
+
 Run CLI:
 
 ```bash
@@ -153,9 +155,40 @@ Options:
 --search <term>     Search movies in CSV
 --threshold <num>   Minimum fuzzy score for search (default: 60)
 --search-extended   Extend search to Summary, Genres, FilePath, and TmdbOverview
+--sync              Run full sync explicitly
 --migrate-only      Run app database migrations only, then exit
 --mark-must-delete  Mark one movie by id as MustDelete
 --list-must-delete  List movies marked as MustDelete
+--version           Show version information
+--help              Show command help and available options
+```
+
+Commands:
+
+```text
+api                 Run API server from the CLI
+```
+
+API command options:
+
+```text
+--urls <urls>       ASPNETCORE_URLS override for the API server
+```
+
+API URL precedence:
+
+1. `api --urls ...`
+2. `ASPNETCORE_URLS` environment variable
+3. Default: `http://localhost:5242`
+
+Help examples:
+
+```bash
+# CLI help (local)
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- --help
+
+# CLI help (docker, force rebuild so latest parser changes are included)
+docker compose run --rm --build cli --help
 ```
 
 Examples:
@@ -166,6 +199,18 @@ dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- --tmdb fals
 
 # Full sync with TMDB
 dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- --tmdb true --batch 10
+
+# Full sync explicitly (docker)
+docker compose run --rm --build cli --sync
+
+# Start API server from the CLI
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- api
+
+# Start API server from the CLI with custom URL
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- api --urls http://localhost:5250
+
+# Start API server from the CLI using ASPNETCORE_URLS
+ASPNETCORE_URLS=http://+:8080 dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- api
 
 # Search in CSV
 dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- --search "batman"
