@@ -57,13 +57,22 @@ app.MapPost("/migrate", async (MovieSyncService syncService) =>
 
 app.MapPost("/sync", async (MovieSyncService syncService, SyncRequest request) =>
 {
+    // Validate batch size
+    var batchSize = request.BatchSize ?? 10;
+    if (batchSize <= 0 || batchSize > 1000)
+        return Results.BadRequest(new { error = "BatchSize must be between 1 and 1000" });
+
     var outputPath = string.IsNullOrWhiteSpace(request.OutputPath)
         ? "assets/csv/plex_movies.csv"
         : request.OutputPath;
+    
+    // Validate output path length
+    if (outputPath.Length > 1024)
+        return Results.BadRequest(new { error = "OutputPath must not exceed 1024 characters" });
 
     var movies = await syncService.RunSyncAsync(
         request.TmdbEnrich ?? true,
-        request.BatchSize ?? 10,
+        batchSize,
         outputPath);
 
     return Results.Ok(new
@@ -75,8 +84,10 @@ app.MapPost("/sync", async (MovieSyncService syncService, SyncRequest request) =
 })
     .WithName("RunSync")
     .WithSummary("Runs Plex to app-database sync")
-    .WithDescription("Reads Plex metadata, optionally enriches movies from TMDB, stores them in the app database, and exports CSV output.")
-    .Produces(StatusCodes.Status200OK);
+    .WithDescription("Reads Plex metadata from the Plex database, optionally enriches movies from TMDB API, stores them in the app database, and exports a CSV file. Returns sync statistics and output path.")
+    .Produces(StatusCodes.Status200OK)
+    .Produces(StatusCodes.Status400BadRequest)
+    .Produces(StatusCodes.Status500InternalServerError);
 
 app.MapGet("/movies", async (AppDatabaseService appDbService) =>
 {
@@ -96,11 +107,23 @@ app.MapGet("/search", async (
     int? threshold,
     bool? extended) =>
 {
+    // Validate required term
+    if (string.IsNullOrWhiteSpace(term))
+        return Results.BadRequest(new { error = "Search term is required" });
+    
+    if (term.Length > 256)
+        return Results.BadRequest(new { error = "Search term must not exceed 256 characters" });
+    
+    // Validate threshold range
+    var thresholdValue = threshold ?? 60;
+    if (thresholdValue < 0 || thresholdValue > 100)
+        return Results.BadRequest(new { error = "Threshold must be between 0 and 100" });
+
     var csvPath = string.IsNullOrWhiteSpace(outputPath) ? "assets/csv/plex_movies.csv" : outputPath;
     var results = await searchService.SearchInCsvAsync(
         csvPath,
         term,
-        threshold ?? 60,
+        thresholdValue,
         extended ?? false);
 
     return Results.Ok(results.Select(r => new
@@ -112,8 +135,9 @@ app.MapGet("/search", async (
 })
     .WithName("SearchMovies")
     .WithSummary("Searches generated CSV content")
-    .WithDescription("Performs fuzzy movie search against the exported CSV using title-only or extended search mode.")
-    .Produces(StatusCodes.Status200OK);
+    .WithDescription("Performs fuzzy movie search against the exported CSV file. Query parameters: term (required, string), outputPath (optional, string), threshold (optional, 0-100, default 60), extended (optional, boolean for extended search mode).")
+    .Produces(StatusCodes.Status200OK)
+    .Produces(StatusCodes.Status400BadRequest);
 
 app.MapPost("/movies/{id:int}/must-delete", async (AppDatabaseService appDbService, int id) =>
 {
