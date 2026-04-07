@@ -27,6 +27,7 @@ var serviceProvider = services.BuildServiceProvider();
 var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
 var syncService = serviceProvider.GetRequiredService<MovieSyncService>();
 var searchService = serviceProvider.GetRequiredService<MovieSearchService>();
+var appDbService = serviceProvider.GetRequiredService<AppDatabaseService>();
 
 string outputPath = "assets/csv/plex_movies.csv";
 bool tmdbEnrich = true;
@@ -35,6 +36,8 @@ string? searchTerm = null;
 int searchThreshold = 60;
 bool searchExtended = false;
 bool migrateOnly = false;
+bool listMustDelete = false;
+int? markMustDeleteId = null;
 
 for (int i = 0; i < args.Length; i++)
 {
@@ -52,6 +55,13 @@ for (int i = 0; i < args.Length; i++)
 		searchExtended = true;
 	else if (args[i] == "--migrate-only")
 		migrateOnly = true;
+	else if (args[i] == "--list-must-delete")
+		listMustDelete = true;
+	else if (args[i] == "--mark-must-delete" && i + 1 < args.Length)
+	{
+		if (int.TryParse(args[i + 1], out var parsedId))
+			markMustDeleteId = parsedId;
+	}
 }
 
 try
@@ -100,6 +110,46 @@ try
 	if (migrateOnly)
 	{
 		await syncService.MigrateOnlyAsync();
+		return;
+	}
+
+	if (markMustDeleteId.HasValue)
+	{
+		if (markMustDeleteId.Value <= 0)
+		{
+			Console.WriteLine("Invalid movie id. Use a positive integer with --mark-must-delete <id>.");
+			return;
+		}
+
+		await appDbService.InitializeAsync();
+		var updated = await appDbService.SetMustDeleteAsync(markMustDeleteId.Value, true);
+		if (!updated)
+		{
+			Console.WriteLine($"Movie not found for id {markMustDeleteId.Value}.");
+			return;
+		}
+
+		Console.WriteLine($"Movie {markMustDeleteId.Value} marked as MustDelete.");
+		return;
+	}
+
+	if (listMustDelete)
+	{
+		await appDbService.InitializeAsync();
+		var mustDeleteMovies = await appDbService.GetMustDeleteMoviesAsync();
+
+		if (mustDeleteMovies.Count == 0)
+		{
+			Console.WriteLine("No movies are currently marked as MustDelete.");
+			return;
+		}
+
+		foreach (var movie in mustDeleteMovies)
+		{
+			Console.WriteLine($"{movie.Id}\t{movie.Title}\t({movie.Year})");
+		}
+
+		Console.WriteLine($"Total: {mustDeleteMovies.Count} movie(s) marked as MustDelete.");
 		return;
 	}
 
