@@ -14,7 +14,12 @@
           <h1>Web Client MVP</h1>
           <p class="muted">Operational UI for health checks, sync, movie review, search and must-delete flows.</p>
         </div>
-        <details class="api-config-collapsible" x-show="route === 'dashboard'">
+        <details
+          class="api-config-collapsible"
+          x-show="route === 'dashboard'"
+          :open="apiSettingsOpen"
+          @toggle="setApiSettingsOpen($event)"
+        >
           <summary>API base URL settings</summary>
           <form class="api-config" @submit.prevent="saveApiBaseUrl()">
             <label for="api-base-url">API base URL</label>

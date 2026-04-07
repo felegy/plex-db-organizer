@@ -20,6 +20,7 @@ export function app() {
 	return {
 		route: "dashboard",
 		apiBaseUrl: localStorage.getItem("plex-api-base-url") || DEFAULT_API_BASE_URL,
+		apiSettingsOpen: localStorage.getItem("plex-api-settings-open") === "true",
 		errorMessage: "",
 		successMessage: "",
 		health: {
@@ -93,6 +94,11 @@ export function app() {
 			if (this.route === "must-delete" && this.mustDelete.items.length === 0 && !this.mustDelete.loading) {
 				this.loadMustDelete();
 			}
+		},
+
+		setApiSettingsOpen(event) {
+			this.apiSettingsOpen = event.target.open;
+			localStorage.setItem("plex-api-settings-open", String(this.apiSettingsOpen));
 		},
 
 		saveApiBaseUrl() {
