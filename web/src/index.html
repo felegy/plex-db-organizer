@@ -24,7 +24,7 @@
           <form class="api-config" @submit.prevent="saveApiBaseUrl()">
             <label for="api-base-url">API base URL</label>
             <div class="api-config-row">
-              <input id="api-base-url" name="api-base-url" type="url" x-model="apiBaseUrl" placeholder="http://localhost:5242">
+              <input id="api-base-url" name="api-base-url" type="text" x-model="apiBaseUrl" placeholder="/api">
               <button type="submit">Save</button>
             </div>
           </form>
@@ -96,6 +96,10 @@
             <label class="inline-toggle">
               <input type="checkbox" x-model="syncForm.tmdbEnrich">
               <span>Enable TMDB enrichment</span>
+            </label>
+            <label class="inline-toggle">
+              <input type="checkbox" x-model="syncForm.omdbEnrich">
+              <span>Enable OMDb enrichment</span>
             </label>
             <button type="submit" :disabled="sync.running" :aria-busy="sync.running">Run sync</button>
           </form>

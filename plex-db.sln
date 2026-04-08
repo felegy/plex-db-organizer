@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlexTmdbSync.Api", "src\Ple
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlexTmdbSync.Cli", "src\PlexTmdbSync.Cli\PlexTmdbSync.Cli.csproj", "{388C327B-EC9A-4579-B7F8-E2DA329C09CE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlexTmdbSync.ApiHost", "src\PlexTmdbSync.ApiHost\PlexTmdbSync.ApiHost.csproj", "{D8F5D842-B064-4B40-A413-11926A2B8BD8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -71,6 +73,18 @@ Global
 		{388C327B-EC9A-4579-B7F8-E2DA329C09CE}.Release|x64.Build.0 = Release|Any CPU
 		{388C327B-EC9A-4579-B7F8-E2DA329C09CE}.Release|x86.ActiveCfg = Release|Any CPU
 		{388C327B-EC9A-4579-B7F8-E2DA329C09CE}.Release|x86.Build.0 = Release|Any CPU
+		{D8F5D842-B064-4B40-A413-11926A2B8BD8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D8F5D842-B064-4B40-A413-11926A2B8BD8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D8F5D842-B064-4B40-A413-11926A2B8BD8}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D8F5D842-B064-4B40-A413-11926A2B8BD8}.Debug|x64.Build.0 = Debug|Any CPU
+		{D8F5D842-B064-4B40-A413-11926A2B8BD8}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D8F5D842-B064-4B40-A413-11926A2B8BD8}.Debug|x86.Build.0 = Debug|Any CPU
+		{D8F5D842-B064-4B40-A413-11926A2B8BD8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D8F5D842-B064-4B40-A413-11926A2B8BD8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D8F5D842-B064-4B40-A413-11926A2B8BD8}.Release|x64.ActiveCfg = Release|Any CPU
+		{D8F5D842-B064-4B40-A413-11926A2B8BD8}.Release|x64.Build.0 = Release|Any CPU
+		{D8F5D842-B064-4B40-A413-11926A2B8BD8}.Release|x86.ActiveCfg = Release|Any CPU
+		{D8F5D842-B064-4B40-A413-11926A2B8BD8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -80,6 +94,7 @@ Global
 		{8339AF21-D3B8-417C-B2B1-39CD23105E35} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{0EC792FD-148F-4D7D-A23E-5C1CDDD50D21} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{388C327B-EC9A-4579-B7F8-E2DA329C09CE} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{D8F5D842-B064-4B40-A413-11926A2B8BD8} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {135A97F9-1903-4204-AAF2-C9D2F9FA1A59}

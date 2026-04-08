@@ -9,7 +9,7 @@ import {
 } from "./api.js";
 import { marked } from "marked";
 
-const DEFAULT_API_BASE_URL = "http://localhost:5242";
+const DEFAULT_API_BASE_URL = "/api";
 const DEFAULT_OUTPUT_PATH = "assets/csv/plex_movies.csv";
 const ROUTES = new Set(["dashboard", "movies", "search", "must-delete"]);
 
@@ -36,6 +36,7 @@ export function app() {
 		},
 		syncForm: {
 			tmdbEnrich: true,
+			omdbEnrich: true,
 			batchSize: 10,
 			outputPath: DEFAULT_OUTPUT_PATH,
 		},
@@ -175,6 +176,7 @@ export function app() {
 			try {
 				const result = await executeSync(this.apiBaseUrl, {
 					tmdbEnrich: this.syncForm.tmdbEnrich,
+					omdbEnrich: this.syncForm.omdbEnrich,
 					batchSize: this.syncForm.batchSize,
 					outputPath: this.syncForm.outputPath,
 				});

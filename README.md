@@ -15,10 +15,11 @@ plex-db/
 │       ├── com.plexapp.plugins.library.db
 │       └── plex_movies_app.db
 └── src/
-    ├── PlexTmdbSync.Types/   # Shared models/types
-    ├── PlexTmdbSync.Core/    # Business logic + data access (Dapper)
-    ├── PlexTmdbSync.Cli/     # Command-line client
-    └── PlexTmdbSync.Api/     # REST API
+    ├── PlexTmdbSync.Types/     # Shared models/types
+    ├── PlexTmdbSync.Core/      # Business logic + data access (Dapper)
+    ├── PlexTmdbSync.ApiHost/   # Shared API host module (endpoints, middleware, web client serving)
+    ├── PlexTmdbSync.Cli/       # Command-line client
+    └── PlexTmdbSync.Api/       # REST API
 ```
 
 ## Projects
@@ -30,18 +31,26 @@ plex-db/
   - Business logic and data access.
   - Plex DB reader (Dapper + SQLite).
   - App DB migrations/versioning (`schema_migrations`).
-  - TMDB enrichment service.
+  - TMDB enrichment service (with IMDb ID extraction).
+  - OMDb enrichment service (IMDb ratings and metadata).
   - CSV export service.
   - Fuzzy search service.
   - Sync orchestration service.
 
+- `PlexTmdbSync.ApiHost`
+  - Shared host module used by both `Api` and `Cli`.
+  - All API endpoints under `/api` route prefix.
+  - Swagger UI served at `/api/swagger`.
+  - Serves web client static files from `/app`.
+
 - `PlexTmdbSync.Cli`
   - Console entrypoint.
   - Supports sync, migration-only, CSV search, and MustDelete management modes.
+  - Can host the API server (embeds `ApiHostModule`).
 
 - `PlexTmdbSync.Api`
-  - REST API host around core services.
-  - Endpoints for health, migrate, sync, list movies, MustDelete management, and search.
+  - Thin REST API entrypoint; delegates entirely to `ApiHostModule`.
+  - Serves both API (`/api`) and web client (`/app`) from a single Kestrel host.
 
 ## Requirements
 
@@ -62,6 +71,11 @@ TMDB variables (required when running TMDB-enriched sync):
 - `TMDB_API_KEY`
 - `TMDB_API_BASE_URL`
 - `TMDB_ACCESS_TOKEN`
+
+OMDb variables (required when running OMDb-enriched sync):
+
+- `OMDB_API_KEY`
+- `OMDB_API_BASE_URL`
 
 Optional web-client CORS variables:
 
@@ -91,22 +105,27 @@ dotnet run --project src/PlexTmdbSync.Api/PlexTmdbSync.Api.csproj
 
 Local URLs:
 
-- API base URL: `http://localhost:5242`
-- Health check: `http://localhost:5242/health`
-- Swagger UI: `http://localhost:5242/swagger`
-- Swagger JSON: `http://localhost:5242/swagger/v1/swagger.json`
+- API base URL: `http://localhost:5242/api`
+- Health check: `http://localhost:5242/api/health`
+- Swagger UI: `http://localhost:5242/api/swagger`
+- Swagger JSON: `http://localhost:5242/api/swagger/v1/swagger.json`
+- Web client: `http://localhost:5242/app`
 
-Start the web client locally (Parcel + Alpine.js):
+The API server also serves the built web client from `/app`. The web client automatically uses
+`window.location.origin/api` as the API base URL when served from the same host.
+
+For local web client development (live reload with Parcel):
 
 ```bash
 npm install
 npm start
 ```
 
-Web client URL:
+Web client dev URL:
 
 - `http://localhost:1234`
-- Default API base URL in UI: `http://localhost:5242`
+- Override API base URL in the UI settings panel (default auto-detects to `localhost:1234/api`
+  which won't work — set it manually to `http://localhost:5242/api`)
 
 ## Docker Compose Test Environment
 
@@ -125,14 +144,15 @@ docker compose up --build -d api
 
 The override maps container port `8080` to host port `5242`, so the API is available on:
 
-- `http://localhost:5242`
-- `http://localhost:5242/health`
-- `http://localhost:5242/swagger`
+- API: `http://localhost:5242/api`
+- Health check: `http://localhost:5242/api/health`
+- Swagger UI: `http://localhost:5242/api/swagger`
+- Web client: `http://localhost:5242/app`
 
 Check health:
 
 ```bash
-curl http://localhost:5242/health
+curl http://localhost:5242/api/health
 ```
 
 Run one-off CLI tasks in Docker:
@@ -172,7 +192,8 @@ Options:
 ```text
 --output <path>     Output CSV path (default: assets/csv/plex_movies.csv)
 --tmdb <true|false> Enable TMDB enrichment (default: true)
---batch <number>    Batch size for TMDB API calls (default: 10)
+--omdb <true|false> Enable OMDb enrichment for IMDb metadata (default: true)
+--batch <number>    Batch size for external API calls (default: 10)
 --search <term>     Search movies in CSV (Prefer: client search --term)
 --threshold <num>   Minimum fuzzy score for search (default: 60)
 --search-extended   Extend search to Summary, Genres, FilePath, and TmdbOverview
@@ -221,6 +242,7 @@ Client sync options:
 
 ```text
 --tmdb-enrich       Enable TMDB enrichment (default: true)
+--omdb-enrich       Enable OMDb enrichment for IMDb metadata (default: true)
 --batch-size <num>  Batch size for sync request (default: 10)
 --output-path <p>   Optional CSV output path for sync request
 ```
@@ -238,8 +260,8 @@ Client URL precedence:
 
 1. `client --api-url ...`
 2. `API_BASE_URL` environment variable
-3. `ASPNETCORE_URLS` environment variable (first URL)
-4. Default: `http://localhost:5242`
+3. `ASPNETCORE_URLS` environment variable (first URL, `/api` appended)
+4. Default: `http://localhost:5242/api`
 
 API URL precedence:
 
@@ -282,34 +304,34 @@ ASPNETCORE_URLS=http://+:8080 dotnet run --project src/PlexTmdbSync.Cli/PlexTmdb
 dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client health
 
 # Client health check with explicit API URL
-dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 health
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080/api health
 
 # Client migrate request
-dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 migrate
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080/api migrate
 
 # Client sync request
-dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 sync --tmdb-enrich true --batch-size 50
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080/api sync --tmdb-enrich true --batch-size 50
 
 # Client movies list request
-dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 movies list
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080/api movies list
 
 # Client must-delete list request
-dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 movies must-delete list
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080/api movies must-delete list
 
 # Client must-delete mark request
-dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 movies must-delete mark --id 123
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080/api movies must-delete mark --id 123
 
 # Client search request (formatted table)
-dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 search --term "batman"
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080/api search --term "batman"
 
 # Client search with extended fields and lower threshold
-dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 search --term "gotham" --extended --threshold 40
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080/api search --term "gotham" --extended --threshold 40
 
 # Client search with raw JSON output
-dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 --json search --term "alien"
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080/api --json search --term "alien"
 
 # Client health check with verbose HTTP logging
-dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080 --verbose health
+dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- client --api-url http://127.0.0.1:8080/api --verbose health
 
 # Search in CSV
 dotnet run --project src/PlexTmdbSync.Cli/PlexTmdbSync.Cli.csproj -- --search "batman"
@@ -337,17 +359,19 @@ dotnet run --project src/PlexTmdbSync.Api/PlexTmdbSync.Api.csproj
 
 Endpoints:
 
-- `GET /health`
-- `POST /migrate`
-- `POST /sync`
-- `GET /movies`
-- `POST /movies/{id}/must-delete`
-- `GET /movies/must-delete`
-- `GET /search?term=...&outputPath=...&threshold=...&extended=...`
-- `GET /swagger/v1/swagger.json`
-- `GET /swagger`
+- `GET /api/health`
+- `POST /api/migrate`
+- `POST /api/sync`
+- `GET /api/movies`
+- `POST /api/movies/{id}/must-delete`
+- `GET /api/movies/must-delete`
+- `GET /api/search?term=...&outputPath=...&threshold=...&extended=...`
+- `GET /api/swagger/v1/swagger.json`
+- `GET /api/swagger`
 
-Swagger UI is available at `/swagger`, and the generated OpenAPI document is available at `/swagger/v1/swagger.json`.
+Swagger UI is available at `/api/swagger`. The generated OpenAPI document is available at `/api/swagger/v1/swagger.json`.
+
+The web client is served from `/app` by the same Kestrel host.
 
 MustDelete examples:
 

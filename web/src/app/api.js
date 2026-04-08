@@ -1,5 +1,26 @@
 function normalizeBaseUrl(baseUrl) {
-	return (baseUrl || "http://localhost:5242").replace(/\/$/, "");
+	const fallback = "/api";
+	const candidate = (baseUrl || "").trim() || fallback;
+	const normalizedCandidate = candidate.replace(/\/$/, "");
+
+	if (typeof window === "undefined" || !window.location?.origin) {
+		return normalizedCandidate || fallback;
+	}
+
+	try {
+		const resolved = new URL(candidate, window.location.origin);
+		const normalizedPath = resolved.pathname === "/" ? fallback : resolved.pathname;
+		const pathWithQuery = `${normalizedPath}${resolved.search}${resolved.hash}`.replace(/\/$/, "");
+		const isExplicitAbsolute = /^[a-z][a-z\d+\-.]*:\/\//i.test(candidate) || candidate.startsWith("//");
+
+		if (!isExplicitAbsolute || resolved.origin === window.location.origin) {
+			return pathWithQuery || "/";
+		}
+
+		return `${resolved.origin}${pathWithQuery}`.replace(/\/$/, "");
+	} catch {
+		return fallback;
+	}
 }
 
 async function parseResponse(response) {

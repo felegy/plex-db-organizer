@@ -5,7 +5,7 @@
   "source": "web/src/index.html",
   "scripts": {
     "start": "parcel",
-    "build": "parcel build && cp web/README.md dist/README.md"
+    "build": "parcel build --public-url /app/ && cp web/README.md dist/README.md"
   },
   "dependencies": {
     "@picocss/pico": "^2.1.1",

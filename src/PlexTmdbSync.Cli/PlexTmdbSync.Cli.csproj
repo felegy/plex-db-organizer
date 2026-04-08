@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\PlexTmdbSync.ApiHost\PlexTmdbSync.ApiHost.csproj" />
     <ProjectReference Include="..\PlexTmdbSync.Core\PlexTmdbSync.Core.csproj" />
     <ProjectReference Include="..\PlexTmdbSync.Types\PlexTmdbSync.Types.csproj" />
   </ItemGroup>
