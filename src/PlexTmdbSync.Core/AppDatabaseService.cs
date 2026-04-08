@@ -48,6 +48,15 @@ public class AppDatabaseService
             "Add MustDelete column to movies",
             @"
             ALTER TABLE movies ADD COLUMN MustDelete INTEGER NOT NULL DEFAULT 0;"
+        ),
+        new(
+            4,
+            "Add IMDb columns to movies",
+            @"
+            ALTER TABLE movies ADD COLUMN ImdbId TEXT NULL;
+            ALTER TABLE movies ADD COLUMN ImdbRating REAL NULL;
+            ALTER TABLE movies ADD COLUMN ImdbVotes INTEGER NULL;
+            ALTER TABLE movies ADD COLUMN ImdbUrl TEXT NULL;"
         )
     };
 
@@ -118,10 +127,10 @@ public class AppDatabaseService
         const string upsert = @"
             INSERT INTO movies (
                 Id, Title, OriginalTitle, FilePath, Year, Summary, Rating, Duration, Genres,
-                TmdbId, TmdbPosterUrl, TmdbRating, TmdbOverview, UpdatedAtUtc
+                TmdbId, TmdbPosterUrl, TmdbRating, TmdbOverview, ImdbId, ImdbRating, ImdbVotes, ImdbUrl, UpdatedAtUtc
             ) VALUES (
                 @Id, @Title, @OriginalTitle, @FilePath, @Year, @Summary, @Rating, @Duration, @Genres,
-                @TmdbId, @TmdbPosterUrl, @TmdbRating, @TmdbOverview, @UpdatedAtUtc
+                @TmdbId, @TmdbPosterUrl, @TmdbRating, @TmdbOverview, @ImdbId, @ImdbRating, @ImdbVotes, @ImdbUrl, @UpdatedAtUtc
             )
             ON CONFLICT(Id) DO UPDATE SET
                 Title = excluded.Title,
@@ -136,6 +145,10 @@ public class AppDatabaseService
                 TmdbPosterUrl = COALESCE(excluded.TmdbPosterUrl, TmdbPosterUrl),
                 TmdbRating = COALESCE(excluded.TmdbRating, TmdbRating),
                 TmdbOverview = COALESCE(excluded.TmdbOverview, TmdbOverview),
+                ImdbId = COALESCE(excluded.ImdbId, ImdbId),
+                ImdbRating = COALESCE(excluded.ImdbRating, ImdbRating),
+                ImdbVotes = COALESCE(excluded.ImdbVotes, ImdbVotes),
+                ImdbUrl = COALESCE(excluded.ImdbUrl, ImdbUrl),
                 UpdatedAtUtc = excluded.UpdatedAtUtc;";
 
         var rows = movies.Select(m => new
@@ -153,6 +166,10 @@ public class AppDatabaseService
             m.TmdbPosterUrl,
             m.TmdbRating,
             m.TmdbOverview,
+            m.ImdbId,
+            m.ImdbRating,
+            m.ImdbVotes,
+            m.ImdbUrl,
             UpdatedAtUtc = DateTime.UtcNow.ToString("O")
         });
 
@@ -181,6 +198,10 @@ public class AppDatabaseService
                 TmdbPosterUrl,
                 TmdbRating,
                 TmdbOverview,
+                ImdbId,
+                ImdbRating,
+                ImdbVotes,
+                ImdbUrl,
                 MustDelete
             FROM movies
             ORDER BY Title;";
@@ -232,6 +253,10 @@ public class AppDatabaseService
                 TmdbPosterUrl,
                 TmdbRating,
                 TmdbOverview
+                ,ImdbId,
+                ImdbRating,
+                ImdbVotes,
+                ImdbUrl
             FROM movies
             WHERE MustDelete = 1
             ORDER BY Title;";

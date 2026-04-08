@@ -24,6 +24,9 @@ public class TmdbMovieResponse
 
     [JsonPropertyName("release_date")]
     public string? ReleaseDate { get; set; }
+
+    [JsonPropertyName("imdb_id")]
+    public string? ImdbId { get; set; }
 }
 
 public class TmdbSearchResult

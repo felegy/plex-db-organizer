@@ -40,7 +40,8 @@ var appDbService = serviceProvider.GetRequiredService<AppDatabaseService>();
 
 var outputOption = new Option<string>("--output", () => "assets/csv/plex_movies.csv", "Output CSV path.");
 var tmdbOption = new Option<string>("--tmdb", () => "true", "Enable TMDB enrichment (true|false).");
-var batchOption = new Option<int>("--batch", () => 10, "Batch size for TMDB API calls.");
+var omdbOption = new Option<string>("--omdb", () => "true", "Enable OMDb enrichment (true|false).");
+var batchOption = new Option<int>("--batch", () => 10, "Batch size for external API calls.");
 var searchOption = new Option<string?>("--search", "Search movies in CSV. (Prefer: client search --term)");
 var thresholdOption = new Option<int>("--threshold", () => 60, "Minimum fuzzy score for search.");
 var searchExtendedOption = new Option<bool>("--search-extended", "Extend search to Summary, Genres, FilePath, and TmdbOverview.");
@@ -90,10 +91,12 @@ clientMigrateCommand.SetHandler(async context =>
 });
 
 var clientSyncTmdbEnrichOption = new Option<bool>("--tmdb-enrich", () => true, "Enable TMDB enrichment for sync.");
+var clientSyncOmdbEnrichOption = new Option<bool>("--omdb-enrich", () => true, "Enable OMDb enrichment for sync.");
 var clientSyncBatchSizeOption = new Option<int>("--batch-size", () => 10, "Batch size used by sync endpoint.");
 var clientSyncOutputPathOption = new Option<string?>("--output-path", "CSV output path used by sync endpoint.");
 var clientSyncCommand = new Command("sync", "Call API sync endpoint.");
 clientSyncCommand.AddOption(clientSyncTmdbEnrichOption);
+clientSyncCommand.AddOption(clientSyncOmdbEnrichOption);
 clientSyncCommand.AddOption(clientSyncBatchSizeOption);
 clientSyncCommand.AddOption(clientSyncOutputPathOption);
 clientSyncCommand.AddValidator(result =>
@@ -106,11 +109,12 @@ clientSyncCommand.SetHandler(async context =>
 {
 	var apiBaseUrl = ResolveClientApiUrl(context.ParseResult.GetValueForOption(clientApiUrlOption));
 	var tmdbEnrich = context.ParseResult.GetValueForOption(clientSyncTmdbEnrichOption);
+	var omdbEnrich = context.ParseResult.GetValueForOption(clientSyncOmdbEnrichOption);
 	var batchSize = context.ParseResult.GetValueForOption(clientSyncBatchSizeOption);
 	var outputPath = context.ParseResult.GetValueForOption(clientSyncOutputPathOption);
 
 	var verbose = context.ParseResult.GetValueForOption(clientVerboseOption);
-	var exitCode = await RunClientSyncAsync(apiBaseUrl, tmdbEnrich, batchSize, outputPath, verbose, logger);
+	var exitCode = await RunClientSyncAsync(apiBaseUrl, tmdbEnrich, omdbEnrich, batchSize, outputPath, verbose, logger);
 	Environment.ExitCode = exitCode;
 });
 
@@ -200,6 +204,7 @@ clientCommand.AddCommand(clientSearchCommand);
 var rootCommand = new RootCommand("Plex TMDB Sync CLI");
 rootCommand.AddOption(outputOption);
 rootCommand.AddOption(tmdbOption);
+rootCommand.AddOption(omdbOption);
 rootCommand.AddOption(batchOption);
 rootCommand.AddOption(searchOption);
 rootCommand.AddOption(thresholdOption);
@@ -224,6 +229,13 @@ rootCommand.AddValidator(result =>
 	if (!bool.TryParse(tmdbValue, out _))
 	{
 		result.ErrorMessage = "--tmdb must be either true or false.";
+		return;
+	}
+
+	var omdbValue = result.GetValueForOption(omdbOption);
+	if (!bool.TryParse(omdbValue, out _))
+	{
+		result.ErrorMessage = "--omdb must be either true or false.";
 		return;
 	}
 
@@ -258,7 +270,9 @@ rootCommand.SetHandler(async context =>
 {
 	var outputPath = context.ParseResult.GetValueForOption(outputOption) ?? "assets/csv/plex_movies.csv";
 	var tmdbValue = context.ParseResult.GetValueForOption(tmdbOption) ?? "true";
+	var omdbValue = context.ParseResult.GetValueForOption(omdbOption) ?? "true";
 	var tmdbEnrich = bool.Parse(tmdbValue);
+	var omdbEnrich = bool.Parse(omdbValue);
 	var batchSize = context.ParseResult.GetValueForOption(batchOption);
 	var searchTerm = context.ParseResult.GetValueForOption(searchOption);
 	var searchThreshold = context.ParseResult.GetValueForOption(thresholdOption);
@@ -271,6 +285,7 @@ rootCommand.SetHandler(async context =>
 	var exitCode = await ExecuteAsync(
 		outputPath,
 		tmdbEnrich,
+		omdbEnrich,
 		batchSize,
 		searchTerm,
 		searchThreshold,
@@ -299,6 +314,7 @@ finally
 static async Task<int> ExecuteAsync(
 	string outputPath,
 	bool tmdbEnrich,
+	bool omdbEnrich,
 	int batchSize,
 	string? searchTerm,
 	int searchThreshold,
@@ -398,11 +414,11 @@ static async Task<int> ExecuteAsync(
 
 		if (sync)
 		{
-			await syncService.RunSyncAsync(tmdbEnrich, batchSize, outputPath);
+			await syncService.RunSyncAsync(tmdbEnrich, omdbEnrich, batchSize, outputPath);
 			return 0;
 		}
 
-		await syncService.RunSyncAsync(tmdbEnrich, batchSize, outputPath);
+		await syncService.RunSyncAsync(tmdbEnrich, omdbEnrich, batchSize, outputPath);
 		return 0;
 	}
 	catch (Exception ex)
@@ -560,6 +576,7 @@ static async Task<int> RunClientMigrateAsync(string apiBaseUrl, bool verbose, Mi
 static async Task<int> RunClientSyncAsync(
 	string apiBaseUrl,
 	bool tmdbEnrich,
+	bool omdbEnrich,
 	int batchSize,
 	string? outputPath,
 	bool verbose,
@@ -576,6 +593,7 @@ static async Task<int> RunClientSyncAsync(
 		var payload = new
 		{
 			tmdbEnrich,
+			omdbEnrich,
 			batchSize,
 			outputPath
 		};
@@ -836,7 +854,7 @@ void MapApiEndpoints(WebApplication app)
 		.WithDescription("Initializes the application database and applies any pending schema migrations.")
 		.Produces(StatusCodes.Status200OK);
 
-	app.MapPost("/sync", async (HttpContext httpContext, IServiceProvider serviceProvider, SyncRequest request) =>
+	app.MapPost("/sync", async (HttpContext httpContext, MovieSyncService syncService, SyncRequest request) =>
 	{
 		var batchSize = request.BatchSize ?? 10;
 		if (batchSize <= 0 || batchSize > 1000)
@@ -849,10 +867,9 @@ void MapApiEndpoints(WebApplication app)
 		if (outputPath.Length > 1024)
 			return ValidationProblem(httpContext, "Invalid sync request", ("outputPath", "OutputPath must not exceed 1024 characters."));
 
-		var syncService = serviceProvider.GetRequiredService<MovieSyncService>();
-
 		var movies = await syncService.RunSyncAsync(
 			request.TmdbEnrich ?? true,
+			request.OmdbEnrich ?? true,
 			batchSize,
 			outputPath);
 
@@ -865,7 +882,7 @@ void MapApiEndpoints(WebApplication app)
 	})
 		.WithName("RunSync")
 		.WithSummary("Runs Plex to app-database sync")
-		.WithDescription("Reads Plex metadata from the Plex database, optionally enriches movies from TMDB API, stores them in the app database, and exports a CSV file. Returns sync statistics and output path.")
+		.WithDescription("Reads Plex metadata from the Plex database, optionally enriches movies from TMDB and OMDb APIs, stores them in the app database, and exports a CSV file. Returns sync statistics and output path.")
 		.Produces(StatusCodes.Status200OK)
 		.Produces<ApiProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")
 		.Produces<ApiProblemDetails>(StatusCodes.Status500InternalServerError, "application/problem+json");
@@ -1047,4 +1064,4 @@ static string? ResolveEnvPath(string envPath)
 	return null;
 }
 
-public sealed record SyncRequest(bool? TmdbEnrich, int? BatchSize, string? OutputPath);
+public sealed record SyncRequest(bool? TmdbEnrich, bool? OmdbEnrich, int? BatchSize, string? OutputPath);

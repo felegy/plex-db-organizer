@@ -91,7 +91,7 @@ app.MapPost("/migrate", async (MovieSyncService syncService) =>
     .WithDescription("Initializes the application database and applies any pending schema migrations.")
     .Produces(StatusCodes.Status200OK);
 
-app.MapPost("/sync", async (HttpContext httpContext, IServiceProvider serviceProvider, SyncRequest request) =>
+app.MapPost("/sync", async (HttpContext httpContext, MovieSyncService syncService, SyncRequest request) =>
 {
     var batchSize = request.BatchSize ?? 10;
     if (batchSize <= 0 || batchSize > 1000)
@@ -104,10 +104,9 @@ app.MapPost("/sync", async (HttpContext httpContext, IServiceProvider servicePro
     if (outputPath.Length > 1024)
         return ValidationProblem(httpContext, "Invalid sync request", ("outputPath", "OutputPath must not exceed 1024 characters."));
 
-    var syncService = serviceProvider.GetRequiredService<MovieSyncService>();
-
     var movies = await syncService.RunSyncAsync(
         request.TmdbEnrich ?? true,
+        request.OmdbEnrich ?? true,
         batchSize,
         outputPath);
 
@@ -120,7 +119,7 @@ app.MapPost("/sync", async (HttpContext httpContext, IServiceProvider servicePro
 })
     .WithName("RunSync")
     .WithSummary("Runs Plex to app-database sync")
-    .WithDescription("Reads Plex metadata from the Plex database, optionally enriches movies from TMDB API, stores them in the app database, and exports a CSV file. Returns sync statistics and output path.")
+    .WithDescription("Reads Plex metadata from the Plex database, optionally enriches movies from TMDB and OMDb APIs, stores them in the app database, and exports a CSV file. Returns sync statistics and output path.")
     .Produces(StatusCodes.Status200OK)
     .Produces<ApiProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")
     .Produces<ApiProblemDetails>(StatusCodes.Status500InternalServerError, "application/problem+json");
@@ -341,4 +340,4 @@ static ApiProblemDetails CreateProblem(
         Errors: errors);
 }
 
-public sealed record SyncRequest(bool? TmdbEnrich, int? BatchSize, string? OutputPath);
+public sealed record SyncRequest(bool? TmdbEnrich, bool? OmdbEnrich, int? BatchSize, string? OutputPath);

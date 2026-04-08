@@ -15,5 +15,9 @@ public class PlexMovie
     public string? TmdbPosterUrl { get; set; }
     public double? TmdbRating { get; set; }
     public string? TmdbOverview { get; set; }
+    public string? ImdbId { get; set; }
+    public double? ImdbRating { get; set; }
+    public int? ImdbVotes { get; set; }
+    public string? ImdbUrl { get; set; }
     public bool MustDelete { get; set; }
 }
