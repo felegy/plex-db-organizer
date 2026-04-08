@@ -8,6 +8,7 @@ public class MovieSyncService
     private readonly AppDatabaseService _appDatabaseService;
     private readonly PlexDatabaseService _plexDatabaseService;
     private readonly TmdbService _tmdbService;
+    private readonly OmdbService _omdbService;
     private readonly CsvExportService _csvExportService;
     private readonly ILogger<MovieSyncService> _logger;
 
@@ -15,12 +16,14 @@ public class MovieSyncService
         AppDatabaseService appDatabaseService,
         PlexDatabaseService plexDatabaseService,
         TmdbService tmdbService,
+        OmdbService omdbService,
         CsvExportService csvExportService,
         ILogger<MovieSyncService> logger)
     {
         _appDatabaseService = appDatabaseService;
         _plexDatabaseService = plexDatabaseService;
         _tmdbService = tmdbService;
+        _omdbService = omdbService;
         _csvExportService = csvExportService;
         _logger = logger;
     }
@@ -31,7 +34,7 @@ public class MovieSyncService
         _logger.LogInformation("Migration-only mode completed. Exiting without Plex sync or CSV export.");
     }
 
-    public async Task<List<PlexMovie>> RunSyncAsync(bool tmdbEnrich, int batchSize, string outputPath)
+    public async Task<List<PlexMovie>> RunSyncAsync(bool tmdbEnrich, bool omdbEnrich, int batchSize, string outputPath)
     {
         await _appDatabaseService.InitializeAsync();
 
@@ -57,6 +60,46 @@ public class MovieSyncService
 
                 var progress = Math.Min(i + batchSize, totalMovies);
                 _logger.LogInformation("Progress: {Progress}/{Total} movies enriched", progress, totalMovies);
+            }
+        }
+
+        if (omdbEnrich)
+        {
+            _logger.LogInformation("Step 2b: Enriching data with OMDb information...");
+
+            var existingMovies = await _appDatabaseService.GetMoviesAsync();
+            var existingById = existingMovies
+                .Where(movie => movie.Id > 0 && !string.IsNullOrWhiteSpace(movie.ImdbId))
+                .ToDictionary(movie => movie.Id);
+
+            foreach (var movie in movies)
+            {
+                if (!existingById.TryGetValue(movie.Id, out var existing))
+                    continue;
+
+                movie.ImdbId = existing.ImdbId;
+                movie.ImdbRating = existing.ImdbRating;
+                movie.ImdbVotes = existing.ImdbVotes;
+                movie.ImdbUrl = existing.ImdbUrl;
+            }
+
+            var moviesToEnrich = movies.Where(movie => string.IsNullOrWhiteSpace(movie.ImdbId)).ToList();
+            _logger.LogInformation(
+                "Pre-loaded OMDb data for {Preloaded}/{Total} movies from app database",
+                movies.Count - moviesToEnrich.Count,
+                movies.Count);
+
+            var totalMovies = moviesToEnrich.Count;
+            for (int i = 0; i < totalMovies; i += batchSize)
+            {
+                var batch = moviesToEnrich.Skip(i).Take(batchSize).ToList();
+                foreach (var movie in batch)
+                {
+                    await _omdbService.EnrichMovieWithOmdbDataAsync(movie);
+                }
+
+                var progress = Math.Min(i + batchSize, totalMovies);
+                _logger.LogInformation("OMDb progress: {Progress}/{Total} movies enriched", progress, totalMovies);
             }
         }
 

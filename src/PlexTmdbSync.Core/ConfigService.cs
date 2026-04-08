@@ -7,6 +7,8 @@ public class ConfigService
     public string? TmdbApiKey { get; }
     public string TmdbApiBaseUrl { get; }
     public string? TmdbAccessToken { get; }
+    public string? OmdbApiKey { get; }
+    public string OmdbApiBaseUrl { get; }
 
     public ConfigService()
     {
@@ -14,8 +16,10 @@ public class ConfigService
         var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL") ?? "sqlite://assets/db/plex_movies_app.db";
         AppDatabaseConnectionString = BuildSqliteConnectionString(databaseUrl);
         TmdbApiKey = Environment.GetEnvironmentVariable("TMDB_API_KEY");
-        TmdbApiBaseUrl = Environment.GetEnvironmentVariable("TMDB_API_BASE_URL") ?? "https://api.themoviedb.org/3";
+        TmdbApiBaseUrl = NormalizeBaseUrl(Environment.GetEnvironmentVariable("TMDB_API_BASE_URL") ?? "https://api.themoviedb.org/3");
         TmdbAccessToken = Environment.GetEnvironmentVariable("TMDB_ACCESS_TOKEN");
+        OmdbApiKey = Environment.GetEnvironmentVariable("OMDB_API_KEY");
+        OmdbApiBaseUrl = NormalizeBaseUrl(Environment.GetEnvironmentVariable("OMDB_API_BASE_URL") ?? "https://www.omdbapi.com/");
     }
 
     public string RequireTmdbApiKey()
@@ -26,6 +30,23 @@ public class ConfigService
     public string RequireTmdbAccessToken()
     {
         return TmdbAccessToken ?? throw new InvalidOperationException("TMDB_ACCESS_TOKEN not found in environment");
+    }
+
+    public string RequireOmdbApiKey()
+    {
+        return OmdbApiKey ?? throw new InvalidOperationException("OMDB_API_KEY not found in environment");
+    }
+
+    private static string NormalizeBaseUrl(string rawBaseUrl)
+    {
+        var trimmed = rawBaseUrl.Trim().Trim('"', '\'');
+        if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmed.TrimEnd('/');
+        }
+
+        return $"https://{trimmed.TrimStart('/')}".TrimEnd('/');
     }
 
     private static string BuildSqliteConnectionString(string databaseUrl)

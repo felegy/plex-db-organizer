@@ -95,6 +95,13 @@ public class TmdbService
                 {
                     movie.TmdbPosterUrl = $"https://image.tmdb.org/t/p/w500{details.PosterPath}";
                 }
+
+                if (string.IsNullOrWhiteSpace(movie.ImdbId) && !string.IsNullOrWhiteSpace(details.ImdbId))
+                {
+                    movie.ImdbId = details.ImdbId;
+                    movie.ImdbUrl = $"https://www.imdb.com/title/{details.ImdbId}/";
+                    _logger.LogDebug("Set ImdbId from TMDB for '{Title}': {ImdbId}", movie.Title, details.ImdbId);
+                }
             }
         }
 
